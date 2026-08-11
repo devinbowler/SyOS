@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+#
+# syos-session - the command greetd/tuigreet runs to start SyOS.
+#
+# Installed to /usr/local/bin by bootstrap.sh rather than stowed into $HOME,
+# because the greeter needs a stable absolute path that exists before the
+# user's home is necessarily readable.
+#
+# Everything machine-specific comes from ~/.config/syos/env.conf, which
+# bootstrap generates (that is where WLR_NO_HARDWARE_CURSORS lands on a VM).
+
+set -u
+
+STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/syos"
+mkdir -p "$STATE_DIR"
+
+# Tell every toolkit it is on Wayland. Without XDG_CURRENT_DESKTOP the
+# desktop portals cannot pick a backend and screen sharing has no picker.
+export XDG_CURRENT_DESKTOP=sway
+export XDG_SESSION_TYPE=wayland
+export XDG_SESSION_DESKTOP=sway
+
+export MOZ_ENABLE_WAYLAND=1
+export QT_QPA_PLATFORM="wayland;xcb"
+export QT_WAYLAND_DISABLE_WINDOWDECORATION=1
+export SDL_VIDEODRIVER=wayland
+# Java GUI apps mis-detect wlroots and render blank without this.
+export _JAVA_AWT_WM_NONREPARENTING=1
+
+# Per-machine environment (virtualisation workarounds, scaling hints).
+if [ -r "$HOME/.config/syos/env.conf" ]; then
+	# shellcheck source=/dev/null
+	. "$HOME/.config/syos/env.conf"
+fi
+
+# Keep one previous log. When Sway refuses to start, this file is the only
+# evidence of why, and it is the first thing `syos doctor` will read.
+LOG="$STATE_DIR/sway.log"
+[ -f "$LOG" ] && mv -f "$LOG" "$LOG.1"
+
+exec sway "$@" >"$LOG" 2>&1

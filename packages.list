@@ -1,0 +1,68 @@
+# SyOS apt manifest - one package per line, '#' starts a comment.
+# Every entry here was checked against Debian 13 (trixie) before landing.
+# Google Chrome is NOT listed: it comes from Google's own apt repo, which
+# bootstrap.sh adds separately.
+
+# --- Compositor and shell ----------------------------------------------
+sway
+swaybg
+swayidle
+xwayland
+foot
+waybar
+fuzzel
+mako-notifier
+
+# --- Login / session ----------------------------------------------------
+# greetd is the display manager; tuigreet is its terminal greeter. Both are
+# in trixie, so the agetty-autologin fallback in the build plan is not used.
+greetd
+tuigreet
+
+# --- Audio --------------------------------------------------------------
+pipewire
+pipewire-pulse
+wireplumber
+pavucontrol
+
+# --- Desktop portals ----------------------------------------------------
+# xdg-desktop-portal-wlr is what makes Chrome screen sharing work on Sway;
+# the gtk portal supplies the file chooser that -wlr does not implement.
+xdg-desktop-portal
+xdg-desktop-portal-wlr
+xdg-desktop-portal-gtk
+
+# --- Authentication -----------------------------------------------------
+# Without a running polkit agent, privileged prompts fail with no visible
+# explanation at all.
+polkitd
+lxpolkit
+
+# --- Fonts --------------------------------------------------------------
+# Iosevka is not packaged in trixie (see docs/decisions.md) and is fetched
+# by bootstrap.sh. fonts-hack is the guaranteed monospace fallback so the
+# system stays legible if that download fails.
+fontconfig
+fonts-hack
+fonts-dejavu-core
+fonts-noto-color-emoji
+
+# --- Config management --------------------------------------------------
+stow
+git
+curl
+ca-certificates
+gnupg
+unzip
+
+# --- Session utilities --------------------------------------------------
+wl-clipboard
+grim
+slurp
+jq
+brightnessctl
+network-manager
+dbus-user-session
+libnotify-bin
+xdg-utils
+python3

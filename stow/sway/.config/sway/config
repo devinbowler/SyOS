@@ -1,0 +1,104 @@
+# SyOS - sway configuration (Phase 0)
+#
+# Layout model: tabbed-by-default (design doc 3.3). Every application that
+# launches becomes a tab in the current frame rather than a tiled split, so
+# the screen always reads as one instrument panel.
+#
+# This file is hand-written and versioned. Two includes are not:
+#   theme.conf              generated from theme/palette.conf by theme/generate.sh
+#   ~/.config/syos/*.conf   per-machine, written by bootstrap.sh (outputs, scale)
+
+include ~/.config/sway/theme.conf
+include ~/.config/syos/sway-local.conf
+
+set $term foot
+set $menu fuzzel
+
+### Layout ###############################################################
+# Everything is a tab. Splits are created deliberately (Phase 1 puts them
+# on the bar); nothing arrives as a split by accident.
+
+workspace_layout tabbed
+default_orientation horizontal
+
+# Borders, gaps, fonts and colors all come from theme.conf.
+# Hide the 1px border when a workspace holds a single tab, so a lone window
+# is edge-to-edge rather than framed for no reason.
+hide_edge_borders smart
+
+# Titlebars are the tab strip and nothing else.
+titlebar_padding 4 1
+
+### Input ################################################################
+
+focus_follows_mouse yes
+# Never teleport the pointer: in a mouse-first environment the cursor is
+# the user's place in the world and moving it under them is disorienting.
+mouse_warping none
+
+input type:touchpad {
+	tap enabled
+	natural_scroll enabled
+	dwt enabled
+	scroll_method two_finger
+}
+
+input type:keyboard {
+	xkb_options terminate:ctrl_alt_bksp
+}
+
+### Window rules #########################################################
+# Floating is off by default. Only genuinely modal things float, and they
+# get a fixed, predictable size instead of whatever the toolkit asks for.
+# The full per-app whitelist lands in Phase 1.
+
+for_window [window_role="pop-up"] floating enable
+for_window [window_role="bubble"] floating enable
+for_window [window_role="dialog"] floating enable
+for_window [window_type="dialog"] floating enable
+for_window [app_id="pavucontrol"] floating enable, resize set 700 500
+
+# Chrome and other XWayland clients occasionally ask to be fullscreen or
+# floating on launch; absorb them into the tab stack like everything else.
+for_window [class="Google-chrome"] floating disable
+for_window [app_id="google-chrome"] floating disable
+
+### Bar ##################################################################
+# Sway supervises waybar, so the bar restarts with the session and there is
+# no separate user unit to keep in sync.
+
+bar {
+	swaybar_command waybar
+}
+
+### Autostart ############################################################
+
+# Hand the session environment to D-Bus and systemd --user before anything
+# else starts. Without this xdg-desktop-portal-wlr has no WAYLAND_DISPLAY
+# and Chrome's screen sharing silently fails to find a portal.
+exec_always dbus-update-activation-environment --systemd WAYLAND_DISPLAY XDG_CURRENT_DESKTOP XDG_SESSION_TYPE
+
+# Solid background. $syos_bg is defined in theme.conf.
+exec swaybg --color $syos_bg
+
+# Authentication prompts (mounting disks, polkit actions) need an agent
+# or they fail with no visible explanation.
+exec lxpolkit
+
+# Land in a terminal rather than an empty screen.
+exec $term
+
+### Keybindings ##########################################################
+# SyOS is mouse-first: nothing in the design requires a keyboard shortcut,
+# and Phase 5 is where a real keybind scheme gets designed. What follows is
+# a deliberately tiny recovery layer so the session is never unrecoverable
+# if the bar fails to start. It is intentionally undocumented in the UI.
+
+set $mod Mod4
+
+bindsym $mod+Return exec $term
+bindsym $mod+d exec $menu
+bindsym $mod+Shift+q kill
+bindsym $mod+Shift+c reload
+bindsym $mod+Shift+e exec swaynag -t warning \
+	-m 'Exit SyOS?' -B 'Exit' 'swaymsg exit'

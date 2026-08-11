@@ -1,0 +1,16 @@
+# Per-machine config. The only file allowed to live outside the repo
+# (design doc 3.5) and the only unversioned config we generate.
+local.conf
+*.local.conf
+
+# Theme fragments emitted into stow/ by theme/generate.sh at build time.
+# Never edit these; edit theme/palette.conf and re-run bootstrap.
+stow/sway/.config/sway/theme.conf
+stow/foot/.config/foot/theme.ini
+stow/waybar/.config/waybar/theme.css
+stow/fuzzel/.config/fuzzel/theme.ini
+
+# Scratch
+*.swp
+*~
+.DS_Store

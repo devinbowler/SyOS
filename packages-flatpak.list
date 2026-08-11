@@ -1,0 +1,8 @@
+# SyOS flatpak manifest - one application id per line, '#' starts a comment.
+#
+# Policy is apt-first (design doc 4.7); flatpak is the fallback for apps
+# Debian does not ship or ships too old. Nothing needs it yet, so bootstrap
+# does not install flatpak itself while this file is empty.
+#
+# Example:
+# us.zoom.Zoom

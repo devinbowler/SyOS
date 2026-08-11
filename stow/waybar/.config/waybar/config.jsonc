@@ -1,0 +1,63 @@
+// SyOS - waybar (Phase 0: status only).
+//
+// This is the skeleton of what becomes the cockpit in Phase 1: launcher
+// button, window-control cluster, tool buttons and the calendar peek all
+// land here. For now it proves the bar starts, is themed, and that its
+// workspace buttons are clickable without touching the keyboard.
+{
+  "layer": "top",
+  "position": "top",
+  // 0 = size from CSS min-height, which theme.css derives from the palette.
+  "height": 0,
+  "spacing": 0,
+
+  "modules-left": ["sway/workspaces"],
+  "modules-center": ["sway/window"],
+  "modules-right": ["network", "pulseaudio", "battery", "clock"],
+
+  "sway/workspaces": {
+    // Mouse-first: click a workspace to switch, scroll over the module to
+    // cycle. Neither may depend on a keybind.
+    "disable-scroll": false,
+    "disable-click": false,
+    "all-outputs": true,
+    "format": "{name}"
+  },
+
+  "sway/window": {
+    "max-length": 90,
+    "tooltip": false
+  },
+
+  "network": {
+    "format-wifi": "wifi {essid} {signalStrength}%",
+    "format-ethernet": "eth",
+    "format-linked": "eth (no ip)",
+    "format-disconnected": "offline",
+    "tooltip-format": "{ifname} {ipaddr}/{cidr}",
+    "on-click": "foot -a syos-nmtui nmtui"
+  },
+
+  "pulseaudio": {
+    "format": "vol {volume}%",
+    "format-muted": "vol muted",
+    "on-click": "pavucontrol",
+    "scroll-step": 5
+  },
+
+  "battery": {
+    // Absent on desktops and in VMs; waybar skips modules that fail to
+    // initialise, so this stays in the config for the laptop fleet.
+    "states": { "warning": 25, "critical": 10 },
+    "format": "bat {capacity}%",
+    "format-charging": "chg {capacity}%",
+    "format-plugged": "ac {capacity}%",
+    "tooltip-format": "{timeTo}"
+  },
+
+  "clock": {
+    "interval": 30,
+    "format": "{:%a %d %b  %H:%M}",
+    "tooltip-format": "<tt>{calendar}</tt>"
+  }
+}

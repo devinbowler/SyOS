@@ -1,0 +1,101 @@
+/* SyOS - waybar styling.
+ *
+ * theme.css is generated from theme/palette.conf and must be imported
+ * first: it defines every color name used below plus the font and the bar
+ * height. Structural rules live here, colors never do. */
+
+@import "theme.css";
+
+* {
+	border: none;
+	border-radius: 0;
+	min-height: 0;
+	margin: 0;
+	padding: 0;
+	box-shadow: none;
+	text-shadow: none;
+}
+
+window#waybar {
+	background: @bg;
+	color: @fg;
+	border-bottom: 1px solid @border;
+}
+
+/* Every module gets the same rhythm so the bar reads as one strip rather
+ * than a row of unrelated widgets. */
+#workspaces,
+#window,
+#network,
+#pulseaudio,
+#battery,
+#clock {
+	padding: 0 10px;
+	color: @fg_dim;
+	background: transparent;
+}
+
+#workspaces {
+	padding: 0;
+}
+
+#workspaces button {
+	padding: 0 10px;
+	color: @fg_dim;
+	background: transparent;
+	border-bottom: 1px solid transparent;
+}
+
+#workspaces button:hover {
+	color: @fg;
+	background: @bg_alt;
+}
+
+#workspaces button.focused,
+#workspaces button.visible {
+	color: @accent;
+	background: @bg_sel;
+	border-bottom: 1px solid @accent;
+}
+
+#workspaces button.urgent {
+	color: @bg;
+	background: @urgent;
+}
+
+#window {
+	color: @fg;
+}
+
+/* Dim the title when the focused window is on another output, so the bar
+ * never claims you are somewhere you are not. */
+window#waybar.empty #window {
+	color: @fg_dim;
+}
+
+#clock {
+	color: @fg;
+	padding-right: 12px;
+}
+
+#network.disconnected {
+	color: @urgent;
+}
+
+#pulseaudio.muted {
+	color: @fg_dim;
+}
+
+#battery.warning {
+	color: @warn;
+}
+
+#battery.critical {
+	color: @urgent;
+}
+
+tooltip {
+	background: @bg_alt;
+	border: 1px solid @border;
+	color: @fg;
+}

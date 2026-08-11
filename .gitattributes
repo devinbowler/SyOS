@@ -1,0 +1,10 @@
+# SyOS is authored on Windows and executed on Debian. A CRLF in a shell script
+# produces "bad interpreter: /usr/bin/env bash^M", so line endings are forced.
+* text=auto eol=lf
+
+*.png binary
+*.jpg binary
+*.ttf binary
+*.otf binary
+*.zip binary
+*.iso binary
