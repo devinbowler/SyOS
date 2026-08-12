@@ -97,14 +97,15 @@
     "format": "term",
     "tooltip": true,
     "tooltip-format": "Terminal",
-    "on-click": "syos-summon foot foot"
+    "on-click": "syos-summon -a foot -- foot"
   },
 
   "custom/browser": {
     "format": "web",
     "tooltip": true,
     "tooltip-format": "Chrome",
-    "on-click": "syos-summon -w 2:Web Google-chrome google-chrome"
+    // -x keeps this button off the calendar, which is also a Chrome window.
+    "on-click": "syos-summon -a Google-chrome -x '^Google Calendar' -- google-chrome"
   },
 
   "custom/calendar": {

@@ -3,9 +3,13 @@
 #
 # Chrome's --app mode renders a URL with no omnibox, tab strip or bookmarks
 # bar, so Google Calendar fills the sway tab exactly like a native window
-# would. --class sets WM_CLASS, which is what lets the sway rules in
-# stow/sway/.config/sway/config send it to the Board workspace and what lets
-# syos-summon find it again on the next click.
+# would.
+#
+# The window is identified by title, not by WM_CLASS. Chrome hands a second
+# invocation to the already-running browser, and --class only applies to a
+# process that is actually starting, so the class of the calendar window
+# depends on whether Chrome happened to be open - which is no basis for a
+# window rule. The title is "Google Calendar ..." either way.
 #
 # Override the URL per machine with SYOS_CALENDAR_URL in ~/.config/syos/env.conf
 # (a self-hosted or work calendar drops straight in).
@@ -13,12 +17,10 @@
 set -euo pipefail
 
 url=${SYOS_CALENDAR_URL:-https://calendar.google.com/calendar/r}
-class=syos-calendar
 
 if ! command -v google-chrome >/dev/null 2>&1; then
 	notify-send "SyOS" "Google Chrome is not installed; re-run ./bootstrap.sh" 2>/dev/null || true
 	exit 1
 fi
 
-exec syos-summon -w "0:Board" "$class" \
-	google-chrome --app="$url" --class="$class" --name="$class"
+exec syos-summon -t '^Google Calendar' -- google-chrome --app="$url"

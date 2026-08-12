@@ -177,10 +177,9 @@ saturated thing on screen, which is the effect design doc 4.4 asked for.
 **Deviation from the design doc**, which specifies `calcurse` as the v1
 calendar and a custom scheduler later.
 
-`syos-calendar` runs `google-chrome --app=<url> --class=syos-calendar`. The
-`--app` flag drops the omnibox, tab strip and bookmarks bar, so the page fills
-a sway tab like a native window. `--class` sets `WM_CLASS`, which is what lets
-sway `assign` it to Board and lets `syos-summon` find it again.
+`syos-calendar` runs `google-chrome --app=<url>`. The `--app` flag drops the
+omnibox, tab strip and bookmarks bar, so the page fills a sway tab like a
+native window.
 
 **Why:** the requirement is a full-page view you can actually schedule events
 in. calcurse is a TUI agenda — it lists and it edits, but it is keyboard-driven
@@ -194,16 +193,29 @@ approach is Google-specific.
 
 ### Bar buttons focus rather than launch duplicates
 
-Every tool button routes through `syos-summon <match> <command...>`, which
-searches the sway tree for a window whose `app_id` (Wayland) or
-`window_properties.class` (XWayland) matches, focuses it if found, and
-otherwise execs the command.
+Every tool button routes through `syos-summon`, which searches the sway tree
+for a matching window, focuses it by `con_id` if found, and otherwise execs
+the command. Without this, a bar button is a trap: it looks like a tab
+switcher and behaves like a spawner, so five clicks give five terminals.
 
-Without this, a bar button is a trap: it looks like a tab switcher and behaves
-like a spawner, so five clicks give five terminals. Matching on app_id *or*
-class is what lets one helper cover native Wayland and XWayland clients alike.
+Windows are matched on app_id *or* class (one helper then covers native
+Wayland and XWayland clients alike) and, crucially, **also on title**.
 
-### Workspaces are named and persistent
+The title tests exist because of Chrome. A second `google-chrome` invocation
+does not start a second browser — it hands the request to the running one
+("Opening in existing browser session") and exits. Flags that configure the
+process, `--class` among them, are therefore ignored whenever Chrome is
+already open, so the calendar window's class depends on the accident of
+whether you had a browser window up. Its *title* is `Google Calendar ...`
+either way. Hence `-t` to find the calendar, and `-x` so the browser button
+does not grab the calendar window instead.
+
+Focusing by `con_id` rather than re-running the criteria through `swaymsg`
+keeps one regex dialect in play. sway's criteria and jq's `test()` are
+different engines, and a match decided in one but executed in the other is a
+bug waiting for an unusual window title.
+
+### Workspaces are named and persistent, but nothing is assigned to them
 
 Named `0:Board`, `1:Work`, `2:Web`, `3:Comms`, `4:Ops` per design doc 3.2.
 Sway destroys a workspace as soon as it empties, so waybar's
@@ -211,8 +223,23 @@ Sway destroys a workspace as soon as it empties, so waybar's
 of rooms has to be visible to be clickable; a mouse-first system cannot ask
 you to remember that workspace 3 exists.
 
-Chrome is assigned to Web and the calendar to Board, so opening something
-never requires deciding where to put it first.
+**Deviation from design doc 3.2:** there are no `assign` rules. The first
+version assigned Chrome to Web, and the result was a bar button that looked
+broken — you clicked `web`, sway does not follow a window to the workspace it
+was assigned to, and nothing appeared to happen. Filing windows away
+invisibly also contradicts the one-frame promise in design doc 3.3: things
+open as a tab where you are looking. The rooms remain as places you choose to
+go.
+
+### `exec swaybg --color $syos_bg` needed quotes
+
+Sway expands config variables textually and passes the result to `sh`, so
+`--color $syos_bg` became `--color #080808`, where `#080808` is a shell
+comment. swaybg ran with a bare `--color`, printed its usage into
+`~/.local/state/syos/sway.log` and exited, leaving the desktop unpainted.
+
+Worth remembering generally: any palette value interpolated into an `exec`
+line has to be quoted, because every color in this system starts with `#`.
 
 ### An icon theme was added
 

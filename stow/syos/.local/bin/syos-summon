@@ -1,53 +1,75 @@
 #!/usr/bin/env bash
-# syos-summon - focus an application if it is already open, otherwise start it.
+# syos-summon - focus a window if it is already open, otherwise start it.
 #
-# Usage: syos-summon [-w <workspace>] <match> <command> [args...]
+# Usage: syos-summon [-a <app_id|class>] [-t <title>] [-x <title>] -- <cmd>...
 #
-# <match> is compared case-insensitively against each window's Wayland app_id,
-# falling back to its XWayland class. This is what makes the bar's tool buttons
-# idempotent: clicking "cal" five times gives you one calendar, focused, rather
-# than five copies of it. Every button on the cockpit goes through here.
+#   -a  window's Wayland app_id, or its XWayland class, compared
+#       case-insensitively and in full
+#   -t  regular expression the window title must match
+#   -x  regular expression the window title must NOT match
 #
-# -w switches to <workspace> before starting the application. Use it for
-# anything the sway config `assign`s elsewhere: without it you click a button,
-# the window opens on a workspace you are not looking at, and the button reads
-# as broken. Focusing an already-open window switches workspace on its own, so
-# -w only matters on the spawn path.
+# All of the given tests must pass. This is what makes the bar's tool buttons
+# idempotent: clicking "cal" five times gives you one calendar, focused,
+# rather than five copies of it.
+#
+# Why titles and not just class: Chrome hands a second invocation off to the
+# already-running process ("Opening in existing browser session"), and flags
+# like --class only take effect when Chrome actually starts. So a calendar
+# opened while the browser is running is indistinguishable from the browser by
+# class alone, and only the title separates them. -x is the other side of
+# that: the browser button must not match the calendar window.
 
 set -euo pipefail
 
-workspace=""
-while getopts ":w:" opt; do
+app=""
+title=""
+exclude=""
+
+while getopts ":a:t:x:" opt; do
 	case "$opt" in
-	w) workspace=$OPTARG ;;
-	*) echo "syos-summon: unknown option -$OPTARG" >&2; exit 2 ;;
+	a) app=$OPTARG ;;
+	t) title=$OPTARG ;;
+	x) exclude=$OPTARG ;;
+	*)
+		echo "syos-summon: unknown option -$OPTARG" >&2
+		exit 2
+		;;
 	esac
 done
 shift $((OPTIND - 1))
+[ "${1:-}" = "--" ] && shift
 
-if [ $# -lt 2 ]; then
-	echo "usage: syos-summon [-w <workspace>] <app_id|class> <command> [args...]" >&2
+if [ $# -eq 0 ]; then
+	echo "usage: syos-summon [-a app] [-t title] [-x title] -- <command>..." >&2
 	exit 2
 fi
 
-match=$1
-shift
-
-# recurse() walks tiled and floating windows alike; leaf windows are the only
-# ones carrying app_id or window_properties.class, so containers fall out.
-if swaymsg -t get_tree 2>/dev/null | jq -e --arg m "$match" '
-	[ recurse(.nodes[]?, .floating_nodes[]?)
-	  | select(((.app_id // .window_properties.class // "") | ascii_downcase)
-	           == ($m | ascii_downcase)) ] | length > 0
-' >/dev/null 2>&1; then
-	# Already open. Try both criteria; the one that does not match is a no-op.
-	swaymsg "[app_id=\"(?i)^${match}\$\"] focus" >/dev/null 2>&1 || true
-	swaymsg "[class=\"(?i)^${match}\$\"] focus" >/dev/null 2>&1 || true
-	exit 0
+if [ -z "$app" ] && [ -z "$title" ]; then
+	echo "syos-summon: need at least one of -a or -t" >&2
+	exit 2
 fi
 
-if [ -n "$workspace" ]; then
-	swaymsg workspace "$workspace" >/dev/null 2>&1 || true
+# Focus by con_id rather than by re-running the criteria through swaymsg: the
+# match is already decided here, and sway's criteria are a different regex
+# dialect that would have to agree with jq's for the two to stay in step.
+con_id=$(
+	swaymsg -t get_tree 2>/dev/null | jq -r \
+		--arg a "$app" --arg t "$title" --arg x "$exclude" '
+		[ recurse(.nodes[]?, .floating_nodes[]?)
+		  # Only leaf windows carry a pid; containers and workspaces do not.
+		  | select(.pid != null)
+		  | select($a == "" or
+		      (((.app_id // .window_properties.class // "") | ascii_downcase)
+		       == ($a | ascii_downcase)))
+		  | select($t == "" or ((.name // "") | test($t)))
+		  | select($x == "" or (((.name // "") | test($x)) | not))
+		] | .[0].id // empty
+	' 2>/dev/null || true
+)
+
+if [ -n "$con_id" ]; then
+	swaymsg "[con_id=$con_id]" focus >/dev/null 2>&1 || true
+	exit 0
 fi
 
 exec "$@"

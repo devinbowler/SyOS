@@ -26,11 +26,14 @@ set $ws_web "2:Web"
 set $ws_comms "3:Comms"
 set $ws_ops "4:Ops"
 
-# Applications land in the room they belong to, so opening something never
-# requires deciding where to put it first.
-assign [class="syos-calendar"] workspace $ws_board
-assign [app_id="syos-calendar"] workspace $ws_board
-assign [class="Google-chrome"] workspace $ws_web
+# Deliberately no `assign` rules. Everything opens as a tab in the workspace
+# you are looking at, which is the one-frame promise; being teleported
+# elsewhere by an invisible rule is the opposite of it. The rooms are places
+# you choose to go, not places applications are filed for you.
+#
+# `assign` was also unworkable for the calendar: it matches at window creation
+# on class, and the calendar's class depends on whether Chrome was already
+# running (see syos-calendar).
 
 ### Layout ###############################################################
 # Everything is a tab. Splits are created deliberately (Phase 1 puts them
@@ -81,10 +84,8 @@ for_window [app_id="pavucontrol"] floating enable, resize set 700 500
 for_window [class="Google-chrome"] floating disable
 for_window [app_id="google-chrome"] floating disable
 
-# The calendar is a Chrome --app window (see syos-calendar). It is a page,
-# not a dialog: it gets the whole tab like any other application.
-for_window [class="syos-calendar"] floating disable
-for_window [app_id="syos-calendar"] floating disable
+# The calendar needs no rule of its own: it is a Chrome --app window and so
+# already carries the Google-chrome class matched above.
 
 ### Bar ##################################################################
 # Sway supervises waybar, so the bar restarts with the session and there is
@@ -102,7 +103,11 @@ bar {
 exec_always dbus-update-activation-environment --systemd WAYLAND_DISPLAY XDG_CURRENT_DESKTOP XDG_SESSION_TYPE
 
 # Solid background. $syos_bg is defined in theme.conf.
-exec swaybg --color $syos_bg
+#
+# The quotes are load-bearing. Sway expands the variable textually and hands
+# the result to sh, so an unquoted #080808 is a shell comment: swaybg runs
+# with a bare --color, prints its usage and exits.
+exec swaybg --color "$syos_bg"
 
 # Authentication prompts (mounting disks, polkit actions) need an agent
 # or they fail with no visible explanation.
