@@ -1,0 +1,120 @@
+#!/usr/bin/env bash
+# syos-doctor - collect everything needed to diagnose a broken session.
+#
+# Safe to run over SSH: it reads the running compositor's environment out of
+# /proc rather than relying on its own, which is the whole point. An SSH shell
+# has no WAYLAND_DISPLAY or SWAYSOCK, so "it works when I type it" and "it
+# works when the bar clicks it" are different questions, and this answers the
+# second one.
+#
+# Output is meant to be pasted somewhere. It reads no secrets beyond the
+# session's own environment variable names.
+
+set -uo pipefail
+
+STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/syos"
+REPO_DIR="${SYOS_REPO:-$HOME/syos}"
+
+section() { printf '\n=== %s %s\n' "$1" "$(printf '%.0s-' $(seq 1 $((60 - ${#1}))))"; }
+kv() { printf '%-22s %s\n' "$1" "$2"; }
+
+section "repo"
+if [ -d "$REPO_DIR/.git" ]; then
+	kv "path" "$REPO_DIR"
+	kv "commit" "$(git -C "$REPO_DIR" log --oneline -1 2>&1)"
+	kv "dirty" "$(git -C "$REPO_DIR" status --porcelain 2>/dev/null | wc -l) file(s)"
+else
+	kv "path" "$REPO_DIR (not a git checkout)"
+fi
+
+section "versions"
+for prog in sway waybar foot fuzzel swaybg google-chrome jq; do
+	if command -v "$prog" >/dev/null 2>&1; then
+		kv "$prog" "$("$prog" --version 2>&1 | head -1)"
+	else
+		kv "$prog" "NOT INSTALLED"
+	fi
+done
+
+section "helpers"
+# A bar button is a bare command name run by waybar. If these do not resolve
+# inside the session's PATH (checked below), every button is a silent no-op.
+for helper in syos-menu syos-summon syos-calendar syos-doctor; do
+	target="$(command -v "$helper" 2>/dev/null)"
+	if [ -n "$target" ]; then
+		if [ -x "$target" ]; then
+			kv "$helper" "$target"
+		else
+			kv "$helper" "$target (NOT EXECUTABLE)"
+		fi
+	else
+		kv "$helper" "NOT ON PATH"
+	fi
+done
+
+section "running session"
+sway_pid="$(pgrep -x sway | head -1)"
+if [ -z "$sway_pid" ]; then
+	kv "sway" "NOT RUNNING"
+else
+	kv "sway pid" "$sway_pid"
+	# The session's real environment, not this shell's.
+	if [ -r "/proc/$sway_pid/environ" ]; then
+		while IFS= read -r line; do
+			case "$line" in
+			PATH=* | WAYLAND_DISPLAY=* | SWAYSOCK=* | XDG_CURRENT_DESKTOP=* | \
+				XDG_SESSION_TYPE=* | WLR_NO_HARDWARE_CURSORS=*)
+				kv "${line%%=*}" "${line#*=}"
+				;;
+			esac
+		done < <(tr '\0' '\n' <"/proc/$sway_pid/environ")
+
+		if tr '\0' '\n' <"/proc/$sway_pid/environ" |
+			grep -q "^PATH=.*$HOME/.local/bin"; then
+			kv "helpers on PATH?" "yes"
+		else
+			kv "helpers on PATH?" "NO - bar buttons cannot work"
+		fi
+	fi
+	kv "children" "$(pgrep -P "$sway_pid" -l 2>/dev/null | tr '\n' ' ')"
+fi
+
+section "windows"
+if [ -n "$sway_pid" ] && command -v swaymsg >/dev/null 2>&1; then
+	# swaymsg needs SWAYSOCK, which an SSH shell does not have. Borrow it.
+	SWAYSOCK="${SWAYSOCK:-$(tr '\0' '\n' <"/proc/$sway_pid/environ" |
+		sed -n 's/^SWAYSOCK=//p')}"
+	export SWAYSOCK
+	if swaymsg -t get_tree >/dev/null 2>&1; then
+		swaymsg -t get_tree | jq -r '
+			[ recurse(.nodes[]?, .floating_nodes[]?) | select(.pid != null) ]
+			| if length == 0 then "no windows open" else
+			  .[] | "  \(.id)  app_id=\(.app_id // "-")  class=\(.window_properties.class // "-")  title=\(.name // "-")"
+			  end'
+		echo
+		swaymsg -t get_workspaces |
+			jq -r '.[] | "  workspace \(.name)\(if .focused then "  <- focused" else "" end)"'
+	else
+		kv "swaymsg" "cannot reach the compositor"
+	fi
+else
+	kv "swaymsg" "skipped (sway not running)"
+fi
+
+section "config validation"
+sway --validate 2>&1 | tail -20 || true
+
+section "login"
+kv "greetd active" "$(systemctl is-active greetd 2>&1)"
+kv "greetd enabled" "$(systemctl is-enabled greetd 2>&1)"
+kv "default target" "$(systemctl get-default 2>&1)"
+kv "greetd vt" "$(sed -n 's/^vt *= *//p' /etc/greetd/config.toml 2>/dev/null)"
+
+section "sway.log (last 40 lines)"
+if [ -r "$STATE_DIR/sway.log" ]; then
+	tail -40 "$STATE_DIR/sway.log"
+else
+	echo "no log at $STATE_DIR/sway.log"
+fi
+
+printf '\n'
