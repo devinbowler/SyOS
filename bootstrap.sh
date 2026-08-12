@@ -405,8 +405,14 @@ step_flatpak() {
 		return 0
 	fi
 
-	command -v flatpak >/dev/null 2>&1 ||
-		die "packages-flatpak.list is not empty but flatpak is not installed"
+	# Installed on demand rather than listed in packages.list: with an empty
+	# manifest, flatpak and its runtimes are pure cost.
+	if ! command -v flatpak >/dev/null 2>&1; then
+		apt_update_once
+		info "installing flatpak"
+		sudo apt-get install -y flatpak || die "could not install flatpak"
+		changed "installed flatpak"
+	fi
 
 	# A --user remote and --user installs: these are the person's
 	# applications, not the machine's, and after the first run nothing here

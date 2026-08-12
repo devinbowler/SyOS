@@ -35,7 +35,6 @@ window#waybar {
 #custom-close,
 #custom-terminal,
 #custom-files,
-#custom-notes,
 #custom-browser,
 #custom-calendar {
 	padding: 0 10px;
@@ -54,7 +53,6 @@ window#waybar {
 #custom-close,
 #custom-terminal,
 #custom-files,
-#custom-notes,
 #custom-browser,
 #custom-calendar,
 #custom-clock,
@@ -70,7 +68,6 @@ window#waybar {
 #custom-close:hover,
 #custom-terminal:hover,
 #custom-files:hover,
-#custom-notes:hover,
 #custom-browser:hover,
 #custom-calendar:hover,
 #custom-clock:hover,
@@ -113,7 +110,6 @@ window#waybar {
 /* Tool buttons read as a set. */
 #custom-terminal,
 #custom-files,
-#custom-notes,
 #custom-browser,
 #custom-calendar {
 	padding: 0 8px;

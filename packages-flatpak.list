@@ -1,10 +1,13 @@
 # SyOS flatpak manifest - one application id per line, '#' starts a comment.
 #
 # Policy is apt-first (design doc 4.7); flatpak is the fallback for apps
-# Debian does not ship or ships too old. Installed per-user from flathub.
-
-# Notes. Debian packages no comparable markdown editor, and Obsidian is not
-# distributed as a .deb at all. It is Electron and it is large, accepted
-# because the requirement was real editing power - bold, colour, highlight,
-# nested bullets - over plain markdown files that stay readable in nvim.
-md.obsidian.Obsidian
+# Debian does not ship or ships too old. bootstrap.sh installs flatpak itself
+# only when this file has an entry in it, so an empty list costs nothing.
+#
+# Obsidian was here and was removed: a third-party notes app in its own world,
+# with its own vault concept and its own idea of what an interface looks like,
+# is a foreign body in a system whose whole point is one coherent frame.
+# See docs/decisions.md.
+#
+# Example:
+# us.zoom.Zoom

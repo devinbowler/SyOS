@@ -325,7 +325,40 @@ The file button opens it as `foot -a syos-files yazi`. `foot -a` sets the
 Wayland app_id, which gives the file browser a tab identity distinct from a
 plain terminal — otherwise the summon matcher cannot tell the two apart.
 
-### Notes are Obsidian, over flatpak
+### Reverted: focus follows the click, not the pointer
+
+`focus_follows_mouse yes` is actively hostile in a system whose controls live
+on a bar at the top of the screen. Travelling to the close button drags focus
+across every window the pointer crosses, so the button acts on whatever was
+passed over last. The workaround people discover is an arc around the other
+windows, which is not something an interface should teach.
+
+`focus_follows_mouse no`. Clicking a tab focuses it; that is the only thing
+that focuses it. This also let fuzzel's `exit-on-keyboard-focus-loss` be
+turned back on, so the launcher dismisses when you click elsewhere, which was
+impossible before: the menu vanished as the pointer crossed a window on the
+way to it.
+
+### Reverted: Obsidian removed, no third-party notes app
+
+Installed, used, removed in the same evening. The objection was not the
+software, it was that it is a world of its own — its own vault concept, its
+own interface language, its own idea of what a window is — dropped into a
+system whose entire premise is one coherent frame. It read as foreign because
+it is foreign.
+
+The flatpak machinery in `bootstrap.sh` stays, since it was the right answer
+to a real question and the next app that Debian does not package will want
+it. But `flatpak` moved out of `packages.list`: bootstrap now installs it on
+demand, only when `packages-flatpak.list` has an entry, so an empty manifest
+costs no disk.
+
+What replaces it is still open. The requirement is unchanged — local plain
+files, small terminal-like type, real bold, colour, highlight and nested
+bullets — but "integrated" now rules out anything that arrives with its own
+universe attached.
+
+### Superseded: notes were briefly Obsidian, over flatpak
 
 **First use of flatpak**, and the first entry in `packages-flatpak.list`.
 Debian ships no comparable markdown editor and Obsidian has no `.deb` at all.

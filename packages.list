@@ -68,10 +68,9 @@ neovim
 
 # yazi, the file manager, is NOT here: it is not packaged in trixie and is
 # vendored from its upstream release by bootstrap.sh.
-
-# --- Flatpak ------------------------------------------------------------
-# For applications Debian does not ship at all; see packages-flatpak.list.
-flatpak
+#
+# flatpak is not here either. bootstrap.sh installs it on demand, only if
+# packages-flatpak.list has an entry, so an empty list costs no disk.
 
 # --- Session utilities --------------------------------------------------
 wl-clipboard

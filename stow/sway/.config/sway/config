@@ -45,7 +45,15 @@ titlebar_padding 4 1
 
 ### Input ################################################################
 
-focus_follows_mouse yes
+# Focus follows the click, not the pointer.
+#
+# `yes` is hostile in a system whose controls live on a bar at the top of the
+# screen: travelling to the close button drags focus across every window the
+# pointer crosses, so the button acts on whatever you passed over last rather
+# than what you were looking at. Reaching a control then means an arc around
+# the other windows, which is not a thing anyone should have to learn.
+focus_follows_mouse no
+
 # Never teleport the pointer: in a mouse-first environment the cursor is
 # the user's place in the world and moving it under them is disorienting.
 mouse_warping none
