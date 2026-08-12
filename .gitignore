@@ -9,8 +9,12 @@ stow/sway/.config/sway/theme.conf
 stow/foot/.config/foot/theme.ini
 stow/waybar/.config/waybar/theme.css
 stow/fuzzel/.config/fuzzel/theme.ini
+stow/syos/.config/syos/notes.css
+stow/syos/.config/syos/notes-palette.conf
 
 # Scratch
+__pycache__/
+*.pyc
 *.swp
 *~
 .DS_Store

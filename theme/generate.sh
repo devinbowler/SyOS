@@ -222,6 +222,107 @@ width=$BORDER_WIDTH
 radius=0
 EOF
 
+# --- syos-notes ---------------------------------------------------------
+# GTK4 CSS, loaded by the notes editor at startup. Colors that have to reach
+# the text buffer itself (markdown syntax highlighting) are not expressible in
+# GTK CSS, so they are also emitted as a small key/value block the app parses.
+
+emit "$STOW_DIR/syos/.config/syos/notes.css" <<EOF
+/* $BANNER */
+
+window.syos-notes,
+.syos-notes textview,
+.syos-notes textview text {
+	background: $(css BG);
+	color: $(css FG);
+}
+
+.syos-notes textview {
+	font-family: "$FONT_FAMILY", "$FONT_FALLBACK", monospace;
+	font-size: ${FONT_SIZE}pt;
+	padding: 14px 18px;
+}
+
+.syos-notes textview text selection {
+	background: $(css ACCENT);
+	color: $(css BG);
+}
+
+/* The note list down the left. */
+.syos-notes listview,
+.syos-notes listview row {
+	background: $(css BG);
+	color: $(css FG_DIM);
+	font-family: "$FONT_FAMILY", "$FONT_FALLBACK", monospace;
+	font-size: ${FONT_SIZE}pt;
+}
+
+.syos-notes listview row:hover {
+	background: $(css BG_ALT);
+	color: $(css FG);
+}
+
+.syos-notes listview row:selected {
+	background: $(css BG_SEL);
+	color: $(css ACCENT);
+}
+
+.syos-notes .sidebar {
+	border-right: ${BORDER_WIDTH}px solid $(css BORDER);
+}
+
+/* The formatting bar that appears over a selection. */
+.syos-notes popover > contents {
+	background: $(css BG_ALT);
+	border: ${BORDER_WIDTH}px solid $(css BORDER_FOCUS);
+	border-radius: 0;
+	padding: 2px;
+}
+
+.syos-notes popover button {
+	background: transparent;
+	color: $(css FG);
+	border: none;
+	border-radius: 0;
+	min-height: 24px;
+	min-width: 28px;
+	padding: 0 6px;
+	font-family: "$FONT_FAMILY", "$FONT_FALLBACK", monospace;
+	font-size: ${FONT_SIZE}pt;
+}
+
+.syos-notes popover button:hover {
+	background: $(css ACCENT);
+	color: $(css BG);
+}
+
+.syos-notes .statusline {
+	background: $(css BG_ALT);
+	color: $(css FG_DIM);
+	border-top: ${BORDER_WIDTH}px solid $(css BORDER);
+	font-family: "$FONT_FAMILY", "$FONT_FALLBACK", monospace;
+	font-size: ${FONT_SIZE}pt;
+	padding: 2px 8px;
+}
+EOF
+
+# Buffer-level colors, as data. GTK CSS cannot reach GtkTextTag.
+emit "$STOW_DIR/syos/.config/syos/notes-palette.conf" <<EOF
+# $BANNER
+
+FG=$(css FG)
+FG_DIM=$(css FG_DIM)
+ACCENT=$(css ACCENT)
+ACCENT_DIM=$(css ACCENT_DIM)
+BG=$(css BG)
+BG_ALT=$(css BG_ALT)
+BG_SEL=$(css BG_SEL)
+WARN=$(css WARN)
+URGENT=$(css URGENT)
+HIGHLIGHT_BG=$(css WARN)
+CODE_FG=$(css ANSI_CYAN)
+EOF
+
 if [[ "$CHANGED" -eq 0 ]]; then
 	printf 'theme: up to date (%s, %spt)\n' "$FONT_FAMILY" "$FONT_SIZE"
 else

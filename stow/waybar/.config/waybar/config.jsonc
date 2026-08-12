@@ -32,6 +32,7 @@
   "modules-right": [
     "custom/terminal",
     "custom/files",
+    "custom/notes",
     "custom/browser",
     "custom/calendar",
     "network",
@@ -96,6 +97,13 @@
     // foot -a sets the Wayland app_id, which gives this tab a name of its own
     // rather than being just another terminal to the summon matcher.
     "on-click": "syos-summon -a syos-files -- foot -a syos-files yazi"
+  },
+
+  "custom/notes": {
+    "format": "notes",
+    "tooltip": true,
+    "tooltip-format": "notes",
+    "on-click": "syos-summon -a dev.syos.Notes -- syos-notes"
   },
 
   "custom/browser": {

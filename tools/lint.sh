@@ -16,14 +16,16 @@ cd "$REPO_DIR"
 
 converted=0
 while IFS= read -r -d '' file; do
-	if grep -qU $'\r' -- "$file" 2>/dev/null; then
+	# -I makes grep treat a binary file as non-matching, so a stray CR inside
+	# a .pyc or a font is never "corrected" into a corrupted file.
+	if grep -qUI $'\r' -- "$file" 2>/dev/null; then
 		sed -i 's/\r$//' -- "$file"
 		printf '  CRLF -> LF  %s\n' "${file#./}"
 		converted=$((converted + 1))
 	fi
 done < <(
 	find . -type f \
-		-not -path './.git/*' \
+		-not -path './.git/*' -not -path '*/__pycache__/*' \
 		\( -name '*.sh' -o -name '*.md' -o -name '*.conf' -o -name '*.ini' \
 		-o -name '*.css' -o -name '*.jsonc' -o -name '*.list' -o -name '*.toml' \
 		-o -name '.gitignore' -o -name '.gitattributes' \
@@ -62,6 +64,31 @@ printf 'shellcheck: clean\n'
 # reports it only to its own stderr inside the session - by which point the
 # machine has no visible controls left to debug it with. jq cannot read the
 # comments waybar allows, so strip whole-line comments first.
+# Python, discovered by shebang for the same reason as the shell scripts.
+mapfile -d '' pyfiles < <(
+	find . -type f -not -path './.git/*' -print0 |
+		while IFS= read -r -d '' file; do
+			read -r line <"$file" || continue
+			case "$line" in
+			'#!'*python*) printf '%s\0' "${file#./}" ;;
+			esac
+		done
+)
+
+if [[ ${#pyfiles[@]} -gt 0 ]]; then
+	# Override when ruff is not on PATH, e.g. a pip --user install:
+	#   RUFF=~/.local/bin/ruff tools/lint.sh
+	RUFF="${RUFF:-ruff}"
+	if command -v "$RUFF" >/dev/null 2>&1; then
+		printf 'ruff: %s\n' "${pyfiles[*]}"
+		"$RUFF" check "${pyfiles[@]}"
+		"$RUFF" format --check "${pyfiles[@]}"
+		printf 'ruff: clean\n'
+	else
+		printf 'ruff not found (set RUFF=/path/to/ruff); skipping\n' >&2
+	fi
+fi
+
 if command -v jq >/dev/null 2>&1; then
 	for jsonc in stow/waybar/.config/waybar/*.jsonc; do
 		[ -e "$jsonc" ] || continue

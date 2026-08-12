@@ -1,0 +1,472 @@
+#!/usr/bin/env python3
+"""syos-notes - the SyOS note editor.
+
+Select some text and a formatting bar appears over it. That gesture is the
+whole reason this exists: every editor that does it is a large Electron
+application with its own visual world, and every editor that looks like this
+one is keyboard-driven and has no toolbar at all.
+
+Notes are plain markdown in ~/notes. Nothing here owns your data: the files
+are readable in nvim, greppable from the terminal, and syncable by any means
+you like. There is no database, no vault and no index.
+
+The buffer holds literal markdown rather than rich text with a serialiser
+behind it. Styling is applied on top of the real characters, so `**bold**`
+shows the asterisks, dimmed, around bold text. That is deliberate. It keeps
+saving lossless and trivial, it keeps the cursor honest about where it is,
+and seeing the markup is the terminal-forward thing to do - you are editing a
+text file and the editor should not pretend otherwise.
+
+Colours and fonts come from ~/.config/syos/notes.css and notes-palette.conf,
+both generated from theme/palette.conf by theme/generate.sh.
+"""
+
+from __future__ import annotations
+
+import os
+import re
+import sys
+from pathlib import Path
+
+import gi
+
+gi.require_version("Gtk", "4.0")
+gi.require_version("Gdk", "4.0")
+
+from gi.repository import Gdk, Gio, GLib, Gtk
+
+APP_ID = "dev.syos.Notes"
+NOTES_DIR = Path(os.environ.get("SYOS_NOTES_DIR", Path.home() / "notes"))
+CONF_DIR = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config")) / "syos"
+CSS_FILE = CONF_DIR / "notes.css"
+PALETTE_FILE = CONF_DIR / "notes-palette.conf"
+
+AUTOSAVE_MS = 800
+RESTYLE_MS = 120
+
+FALLBACK_PALETTE = {
+    "FG": "#d6d6d6",
+    "FG_DIM": "#7c7c7c",
+    "ACCENT": "#a878f0",
+    "ACCENT_DIM": "#6d4aa6",
+    "BG": "#080808",
+    "BG_ALT": "#121212",
+    "BG_SEL": "#1f1f1f",
+    "WARN": "#d9a441",
+    "URGENT": "#cf5a5a",
+    "HIGHLIGHT_BG": "#d9a441",
+    "CODE_FG": "#6fb5ad",
+}
+
+
+def load_palette() -> dict[str, str]:
+    palette = dict(FALLBACK_PALETTE)
+    try:
+        for line in PALETTE_FILE.read_text(encoding="utf-8").splitlines():
+            line = line.split("#", 1)[0].strip() if not line.startswith("#") else ""
+            if "=" in line:
+                key, _, value = line.partition("=")
+                palette[key.strip()] = value.strip()
+    except OSError:
+        pass
+    return palette
+
+
+# --- markdown -------------------------------------------------------------
+# Inline spans, applied in order. Each pattern captures the syntax markers in
+# groups 1 and 3 and the content in group 2, so the markers can be dimmed
+# while the content is styled.
+
+INLINE_RULES: list[tuple[str, re.Pattern[str]]] = [
+    ("code", re.compile(r"(`)([^`\n]+)(`)")),
+    ("bold", re.compile(r"(\*\*)([^\n]+?)(\*\*)")),
+    ("highlight", re.compile(r"(==)([^\n]+?)(==)")),
+    ("strike", re.compile(r"(~~)([^\n]+?)(~~)")),
+    ("italic", re.compile(r"(?<![*\w])(\*)([^*\n]+?)(\*)(?![*\w])")),
+]
+
+HEADING_RE = re.compile(r"^(#{1,6})(\s+)(.*)$")
+BULLET_RE = re.compile(r"^(\s*)([-*])(\s+)")
+CHECKBOX_RE = re.compile(r"^(\s*[-*]\s+)(\[[ xX]\])(\s+)")
+QUOTE_RE = re.compile(r"^(\s*>)(\s?)")
+
+# Toolbar. Each entry is (label, tooltip, kind, payload).
+#   wrap  - surround the selection with payload
+#   line  - toggle payload as a line prefix
+TOOLBAR = [
+    ("B", "bold", "wrap", "**"),
+    ("i", "italic", "wrap", "*"),
+    ("H", "highlight", "wrap", "=="),
+    ("`", "code", "wrap", "`"),
+    ("S", "strikethrough", "wrap", "~~"),
+    ("h1", "heading", "line", "# "),
+    ("h2", "subheading", "line", "## "),
+    ("\u2022", "bullet list", "line", "- "),
+    ("\u2610", "checkbox", "line", "- [ ] "),
+    ("\u201c", "quote", "line", "> "),
+]
+
+
+class Editor(Gtk.ApplicationWindow):
+    def __init__(self, app: Gtk.Application):
+        super().__init__(application=app, title="notes")
+        self.set_default_size(1000, 700)
+        self.add_css_class("syos-notes")
+
+        self.palette = load_palette()
+        self.current: Path | None = None
+        self._save_source = 0
+        self._style_source = 0
+        self._loading = False
+
+        NOTES_DIR.mkdir(parents=True, exist_ok=True)
+
+        root = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        self.set_child(root)
+
+        panes = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, vexpand=True)
+        root.append(panes)
+
+        panes.append(self._build_sidebar())
+        panes.append(self._build_editor())
+
+        self.status = Gtk.Label(xalign=0, label="")
+        self.status.add_css_class("statusline")
+        root.append(self.status)
+
+        self._build_popover()
+        self._load_css()
+        self.refresh_notes()
+
+    # --- widgets ----------------------------------------------------------
+
+    def _build_sidebar(self) -> Gtk.Widget:
+        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, width_request=220)
+        box.add_css_class("sidebar")
+
+        new = Gtk.Button(label="+  new note")
+        new.connect("clicked", lambda _b: self.new_note())
+        box.append(new)
+
+        self.listbox = Gtk.ListBox(vexpand=True)
+        self.listbox.connect("row-selected", self._on_row_selected)
+        scroller = Gtk.ScrolledWindow(vexpand=True)
+        scroller.set_child(self.listbox)
+        box.append(scroller)
+        return box
+
+    def _build_editor(self) -> Gtk.Widget:
+        self.view = Gtk.TextView(hexpand=True, vexpand=True)
+        self.view.set_wrap_mode(Gtk.WrapMode.WORD_CHAR)
+        self.view.set_monospace(True)
+
+        self.buffer = self.view.get_buffer()
+        self._make_tags()
+        self.buffer.connect("changed", self._on_changed)
+        self.buffer.connect("notify::has-selection", self._on_selection)
+        self.buffer.connect("mark-set", lambda *_a: self._on_selection())
+
+        scroller = Gtk.ScrolledWindow(hexpand=True, vexpand=True)
+        scroller.set_child(self.view)
+        return scroller
+
+    def _build_popover(self) -> None:
+        self.popover = Gtk.Popover(autohide=False, has_arrow=True)
+        self.popover.set_parent(self.view)
+
+        row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=0)
+        for label, tip, kind, payload in TOOLBAR:
+            button = Gtk.Button(label=label, tooltip_text=tip)
+            button.connect("clicked", self._on_format, kind, payload)
+            row.append(button)
+        self.popover.set_child(row)
+
+    def _make_tags(self) -> None:
+        p = self.palette
+        table = [
+            ("marker", {"foreground": p["FG_DIM"]}),
+            ("bold", {"weight": 700}),
+            ("italic", {"style": 2}),  # Pango.Style.ITALIC
+            ("code", {"foreground": p["CODE_FG"]}),
+            ("highlight", {"background": p["HIGHLIGHT_BG"], "foreground": p["BG"]}),
+            ("strike", {"strikethrough": True, "foreground": p["FG_DIM"]}),
+            ("heading", {"weight": 700, "foreground": p["ACCENT"]}),
+            ("quote", {"foreground": p["FG_DIM"], "style": 2}),
+            ("bullet", {"foreground": p["ACCENT"]}),
+        ]
+        for name, props in table:
+            self.buffer.create_tag(name, **props)
+
+    def _load_css(self) -> None:
+        provider = Gtk.CssProvider()
+        try:
+            provider.load_from_path(str(CSS_FILE))
+        except GLib.Error:
+            return
+        display = Gdk.Display.get_default()
+        if display is not None:
+            Gtk.StyleContext.add_provider_for_display(
+                display, provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
+            )
+
+    # --- notes on disk ----------------------------------------------------
+
+    def refresh_notes(self, select: Path | None = None) -> None:
+        while (row := self.listbox.get_row_at_index(0)) is not None:
+            self.listbox.remove(row)
+
+        notes = sorted(
+            NOTES_DIR.glob("*.md"), key=lambda p: p.stat().st_mtime, reverse=True
+        )
+        if not notes:
+            self.new_note()
+            return
+
+        for path in notes:
+            label = Gtk.Label(
+                label=path.stem,
+                xalign=0,
+                margin_start=8,
+                margin_end=8,
+                margin_top=3,
+                margin_bottom=3,
+            )
+            label.set_ellipsize(3)  # Pango.EllipsizeMode.END
+            row = Gtk.ListBoxRow()
+            row.set_child(label)
+            row._path = path
+            self.listbox.append(row)
+
+        target = select or notes[0]
+        for index in range(len(notes)):
+            row = self.listbox.get_row_at_index(index)
+            if row is not None and row._path == target:
+                self.listbox.select_row(row)
+                return
+
+    def _on_row_selected(self, _box, row) -> None:
+        if row is None:
+            return
+        self.open_note(row._path)
+
+    def open_note(self, path: Path) -> None:
+        self.flush()
+        self._loading = True
+        try:
+            text = path.read_text(encoding="utf-8")
+        except OSError as exc:
+            text = f"# could not read {path.name}\n\n{exc}\n"
+        self.buffer.set_text(text)
+        self.current = path
+        self._loading = False
+        self.restyle()
+        self.status.set_label(f"{path}  \u00b7  saved")
+
+    def new_note(self) -> None:
+        self.flush()
+        stem = "untitled"
+        index = 1
+        while (NOTES_DIR / f"{stem}.md").exists():
+            index += 1
+            stem = f"untitled-{index}"
+        path = NOTES_DIR / f"{stem}.md"
+        path.write_text(f"# {stem}\n\n", encoding="utf-8")
+        self.refresh_notes(select=path)
+
+    def flush(self) -> None:
+        """Write the buffer to disk now, if it belongs to a file."""
+        if self.current is None or self._loading:
+            return
+        start, end = self.buffer.get_bounds()
+        text = self.buffer.get_text(start, end, False)
+        try:
+            self.current.write_text(text, encoding="utf-8")
+        except OSError as exc:
+            self.status.set_label(f"could not save: {exc}")
+            return
+        self._rename_to_heading(text)
+
+    def _rename_to_heading(self, text: str) -> None:
+        """Keep the filename in step with the note's first heading."""
+        if self.current is None:
+            return
+        first = text.lstrip().split("\n", 1)[0] if text.strip() else ""
+        match = HEADING_RE.match(first)
+        if not match:
+            return
+        slug = re.sub(r"[^a-z0-9]+", "-", match.group(3).strip().lower()).strip("-")
+        if not slug or slug == self.current.stem:
+            return
+        target = NOTES_DIR / f"{slug}.md"
+        if target.exists():
+            return
+        try:
+            self.current.rename(target)
+        except OSError:
+            return
+        self.current = target
+        self.refresh_notes(select=target)
+
+    # --- editing ----------------------------------------------------------
+
+    def _on_changed(self, _buffer) -> None:
+        if self._loading:
+            return
+        if self._style_source:
+            GLib.source_remove(self._style_source)
+        self._style_source = GLib.timeout_add(RESTYLE_MS, self._restyle_tick)
+
+        if self._save_source:
+            GLib.source_remove(self._save_source)
+        self._save_source = GLib.timeout_add(AUTOSAVE_MS, self._save_tick)
+        self.status.set_label(f"{self.current}  \u00b7  editing")
+
+    def _restyle_tick(self) -> bool:
+        self._style_source = 0
+        self.restyle()
+        return False
+
+    def _save_tick(self) -> bool:
+        self._save_source = 0
+        self.flush()
+        if self.current is not None:
+            self.status.set_label(f"{self.current}  \u00b7  saved")
+        return False
+
+    def restyle(self) -> None:
+        start, end = self.buffer.get_bounds()
+        for name in (
+            "marker",
+            "bold",
+            "italic",
+            "code",
+            "highlight",
+            "strike",
+            "heading",
+            "quote",
+            "bullet",
+        ):
+            self.buffer.remove_tag_by_name(name, start, end)
+
+        text = self.buffer.get_text(start, end, True)
+
+        for offset, line in self._lines(text):
+            if (m := HEADING_RE.match(line)) is not None:
+                self._tag("marker", offset, m.start(1), m.end(2))
+                self._tag("heading", offset, m.start(3), m.end(3))
+                continue
+            if (m := CHECKBOX_RE.match(line)) is not None:
+                self._tag("bullet", offset, m.start(1), m.end(2))
+            elif (m := BULLET_RE.match(line)) is not None:
+                self._tag("bullet", offset, m.start(2), m.end(2))
+            if (m := QUOTE_RE.match(line)) is not None:
+                self._tag("quote", offset, 0, len(line))
+
+        for name, pattern in INLINE_RULES:
+            for m in pattern.finditer(text):
+                self._tag("marker", 0, m.start(1), m.end(1))
+                self._tag(name, 0, m.start(2), m.end(2))
+                self._tag("marker", 0, m.start(3), m.end(3))
+
+    @staticmethod
+    def _lines(text: str):
+        offset = 0
+        for line in text.split("\n"):
+            yield offset, line
+            offset += len(line) + 1
+
+    def _tag(self, name: str, base: int, start: int, end: int) -> None:
+        s = self.buffer.get_iter_at_offset(base + start)
+        e = self.buffer.get_iter_at_offset(base + end)
+        self.buffer.apply_tag_by_name(name, s, e)
+
+    # --- the floating formatting bar --------------------------------------
+
+    def _on_selection(self, *_args) -> None:
+        if not self.buffer.get_has_selection():
+            self.popover.popdown()
+            return
+
+        start, _end = self.buffer.get_selection_bounds()
+        rect = self.view.get_iter_location(start)
+        x, y = self.view.buffer_to_window_coords(
+            Gtk.TextWindowType.WIDGET, rect.x, rect.y
+        )
+        self.popover.set_pointing_to(Gdk.Rectangle(x=x, y=y, width=1, height=1))
+        self.popover.popup()
+
+    def _on_format(self, _button, kind: str, payload: str) -> None:
+        if not self.buffer.get_has_selection():
+            return
+        if kind == "wrap":
+            self._wrap(payload)
+        else:
+            self._prefix(payload)
+        self.restyle()
+        self.popover.popdown()
+
+    def _wrap(self, marker: str) -> None:
+        start, end = self.buffer.get_selection_bounds()
+        text = self.buffer.get_text(start, end, False)
+
+        self.buffer.begin_user_action()
+        if (
+            text.startswith(marker)
+            and text.endswith(marker)
+            and len(text) > 2 * len(marker)
+        ):
+            replacement = text[len(marker) : -len(marker)]
+        else:
+            replacement = f"{marker}{text}{marker}"
+        self.buffer.delete(start, end)
+        self.buffer.insert(start, replacement)
+        self.buffer.end_user_action()
+
+    def _prefix(self, marker: str) -> None:
+        start, end = self.buffer.get_selection_bounds()
+        first = start.get_line()
+        last = end.get_line()
+
+        self.buffer.begin_user_action()
+        for line in range(first, last + 1):
+            it = self.buffer.get_iter_at_line(line)[1]
+            eol = it.copy()
+            if not eol.ends_line():
+                eol.forward_to_line_end()
+            existing = self.buffer.get_text(it, eol, False)
+            if existing.startswith(marker):
+                stop = self.buffer.get_iter_at_offset(it.get_offset() + len(marker))
+                self.buffer.delete(it, stop)
+            else:
+                self.buffer.insert(it, marker)
+        self.buffer.end_user_action()
+
+
+class NotesApp(Gtk.Application):
+    def __init__(self):
+        super().__init__(application_id=APP_ID, flags=Gio.ApplicationFlags.HANDLES_OPEN)
+        self.window: Editor | None = None
+
+    def do_activate(self):
+        if self.window is None:
+            self.window = Editor(self)
+        self.window.present()
+
+    def do_open(self, files, _n_files, _hint):
+        self.do_activate()
+        if files and self.window is not None:
+            path = Path(files[0].get_path())
+            if path.exists():
+                self.window.open_note(path)
+
+    def do_shutdown(self):
+        if self.window is not None:
+            self.window.flush()
+        Gtk.Application.do_shutdown(self)
+
+
+if __name__ == "__main__":
+    # Wayland takes the app_id from the program name, and sway's window rules
+    # key off it. Without this the tab is called "python3".
+    GLib.set_prgname(APP_ID)
+    sys.exit(NotesApp().run(sys.argv))

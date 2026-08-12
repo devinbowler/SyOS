@@ -353,10 +353,37 @@ it. But `flatpak` moved out of `packages.list`: bootstrap now installs it on
 demand, only when `packages-flatpak.list` has an entry, so an empty manifest
 costs no disk.
 
-What replaces it is still open. The requirement is unchanged — local plain
-files, small terminal-like type, real bold, colour, highlight and nested
-bullets — but "integrated" now rules out anything that arrives with its own
-universe attached.
+### Notes are a SyOS application, not an installed one
+
+The requirement was: select text and a formatting bar appears over it, small
+terminal-like type, files on disk. Nothing packaged does all three. Every
+editor with that selection toolbar is a large Electron or Flutter application
+carrying its own visual world — the exact objection that removed Obsidian —
+and every editor that looks right is keyboard-driven and has no toolbar
+because it has no mouse-first concept at all. Notion itself has no Linux
+build. MarkText and AppFlowy were the near misses; each drops one leg.
+
+So `syos-notes` is ours: GTK4 and Python, both stock Debian, styled from
+`theme/palette.conf` like everything else. This is a deliberate exception to
+apt-first — the policy exists so we do not maintain what someone else already
+maintains, and here nobody does.
+
+Two design choices inside it are worth defending:
+
+**The buffer holds literal markdown, not rich text with a serialiser behind
+it.** Styling is applied over the real characters, so `**bold**` shows dimmed
+asterisks around bold text. Saving is therefore lossless and trivial, the
+cursor is never lying about where it is, and the files stay editable in nvim
+and greppable from the terminal. Showing the markup is also the honest thing
+for a system like this: you are editing a text file.
+
+**No vault, no database, no index.** `~/notes/*.md`, sorted by mtime, with the
+filename tracking the first heading. Nothing here owns your data.
+
+Colour as a formatting option was cut from the first version. Markdown has no
+colour, and every way of adding it — HTML spans, invented syntax — makes the
+file worse to read as text. Highlight (`==like this==`) covers what colour was
+actually wanted, which is making a line stand out.
 
 ### Superseded: notes were briefly Obsidian, over flatpak
 
