@@ -51,9 +51,14 @@ changed. A second run on an unchanged machine reports `no changes`.
 **Phase 0 — Skeleton. Complete.** Debian boots into a themed, tabbed Sway
 session with a working bar, foot and Chrome.
 
-Not yet built: the mouse-first control bar and built-in tools (Phase 1), focus
-enforcement and the dev-container wrapper (Phase 2), the custom scheduler
-(Phase 3), a preseeded install ISO (Phase 4).
+**Phase 1 — The cockpit. In progress.** The bar is now a control surface: a
+`+` launcher opening a searchable, icon-lit application list, window split and
+close controls, tool buttons that focus what is already open instead of
+spawning duplicates, five named workspaces, and a full-page calendar.
+
+Not yet built: the remaining built-in tools (Phase 1), focus enforcement and
+the dev-container wrapper (Phase 2), the custom scheduler (Phase 3), a
+preseeded install ISO (Phase 4).
 
 The roadmap is in [`docs/syos-design-doc.md`](docs/syos-design-doc.md#6-roadmap).
 

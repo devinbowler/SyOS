@@ -29,10 +29,90 @@ window#waybar {
 #network,
 #pulseaudio,
 #battery,
-#clock {
+#clock,
+#custom-launcher,
+#custom-splith,
+#custom-splitv,
+#custom-close,
+#custom-terminal,
+#custom-browser,
+#custom-calendar {
 	padding: 0 10px;
 	color: @fg_dim;
 	background: transparent;
+}
+
+/* --- Clickable controls -------------------------------------------------
+ * Anything that does something on click lights up under the pointer. In a
+ * mouse-first system the hover state is the entire discoverability story:
+ * it is how you learn the bar is a control surface and not a readout. */
+#custom-launcher,
+#custom-splith,
+#custom-splitv,
+#custom-close,
+#custom-terminal,
+#custom-browser,
+#custom-calendar,
+#clock,
+#network,
+#pulseaudio {
+	transition: background 80ms linear, color 80ms linear;
+}
+
+#custom-launcher:hover,
+#custom-splith:hover,
+#custom-splitv:hover,
+#custom-close:hover,
+#custom-terminal:hover,
+#custom-browser:hover,
+#custom-calendar:hover,
+#clock:hover,
+#network:hover,
+#pulseaudio:hover {
+	color: @fg;
+	background: @bg_sel;
+}
+
+/* The launcher is the one thing on screen a new user must find, so it is the
+ * only element in the chrome that is accented at rest. */
+#custom-launcher {
+	color: @accent;
+	font-size: 15px;
+	padding: 0 14px;
+}
+
+#custom-launcher:hover {
+	color: @bg;
+	background: @accent;
+}
+
+#custom-close:hover {
+	color: @bg;
+	background: @urgent;
+}
+
+/* Window controls sit in their own visual group, fenced off from the
+ * workspace list on one side and the title on the other. */
+#custom-splith {
+	border-left: 1px solid @border;
+	padding-left: 12px;
+}
+
+#custom-close {
+	border-right: 1px solid @border;
+	padding-right: 12px;
+}
+
+/* Tool buttons read as a set. */
+#custom-terminal,
+#custom-browser,
+#custom-calendar {
+	padding: 0 8px;
+}
+
+#custom-calendar {
+	border-right: 1px solid @border;
+	padding-right: 12px;
 }
 
 #workspaces {
@@ -97,5 +177,10 @@ window#waybar.empty #window {
 tooltip {
 	background: @bg_alt;
 	border: 1px solid @border;
+	color: @fg;
+}
+
+tooltip label {
+	padding: 4px 6px;
 	color: @fg;
 }

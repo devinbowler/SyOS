@@ -47,6 +47,11 @@ fonts-hack
 fonts-dejavu-core
 fonts-noto-color-emoji
 
+# --- Icons --------------------------------------------------------------
+# The launcher renders an icon beside each application; without an icon theme
+# installed the list is text only and much slower to scan.
+papirus-icon-theme
+
 # --- Config management --------------------------------------------------
 stow
 git

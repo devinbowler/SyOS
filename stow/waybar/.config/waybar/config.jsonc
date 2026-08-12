@@ -1,9 +1,13 @@
-// SyOS - waybar (Phase 0: status only).
+// SyOS - the cockpit.
 //
-// This is the skeleton of what becomes the cockpit in Phase 1: launcher
-// button, window-control cluster, tool buttons and the calendar peek all
-// land here. For now it proves the bar starts, is themed, and that its
-// workspace buttons are clickable without touching the keyboard.
+// Every control here is reachable with the mouse alone; nothing on this bar
+// requires or hints at a keyboard shortcut. Reading left to right: open
+// something, move between workspaces, shape and close the current window,
+// jump to a tool, check the machine.
+//
+// Custom modules shell out to the scripts in stow/syos/.local/bin. They all
+// route through syos-summon, so a button focuses what is already open instead
+// of stacking duplicates.
 {
   "layer": "top",
   "position": "top",
@@ -11,9 +15,32 @@
   "height": 0,
   "spacing": 0,
 
-  "modules-left": ["sway/workspaces"],
+  "modules-left": [
+    "custom/launcher",
+    "sway/workspaces",
+    "custom/splith",
+    "custom/splitv",
+    "custom/close"
+  ],
   "modules-center": ["sway/window"],
-  "modules-right": ["network", "pulseaudio", "battery", "clock"],
+  "modules-right": [
+    "custom/terminal",
+    "custom/browser",
+    "custom/calendar",
+    "network",
+    "pulseaudio",
+    "battery",
+    "clock"
+  ],
+
+  // --- Open ---------------------------------------------------------------
+
+  "custom/launcher": {
+    "format": "+",
+    "tooltip": true,
+    "tooltip-format": "Open an application",
+    "on-click": "syos-menu"
+  },
 
   "sway/workspaces": {
     // Mouse-first: click a workspace to switch, scroll over the module to
@@ -21,13 +48,73 @@
     "disable-scroll": false,
     "disable-click": false,
     "all-outputs": true,
-    "format": "{name}"
+    "format": "{name}",
+    // Sway destroys a workspace the moment it empties. Listing them here
+    // keeps all five buttons on the bar at all times, so the set of rooms is
+    // something you can see and click rather than something you memorise.
+    "persistent-workspaces": {
+      "0:Board": [],
+      "1:Work": [],
+      "2:Web": [],
+      "3:Comms": [],
+      "4:Ops": []
+    }
+  },
+
+  // --- Shape the current window -------------------------------------------
+  // Tabs are the default, so these two are the deliberate escape into a
+  // split: press one, then open the next thing from "+".
+
+  "custom/splith": {
+    "format": "|",
+    "tooltip": true,
+    "tooltip-format": "Next window opens beside this one",
+    "on-click": "swaymsg splith"
+  },
+
+  "custom/splitv": {
+    "format": "\u2014",
+    "tooltip": true,
+    "tooltip-format": "Next window opens below this one",
+    "on-click": "swaymsg splitv"
+  },
+
+  "custom/close": {
+    "format": "\u00d7",
+    "tooltip": true,
+    "tooltip-format": "Close the focused window",
+    "on-click": "swaymsg kill"
   },
 
   "sway/window": {
-    "max-length": 90,
+    "max-length": 80,
     "tooltip": false
   },
+
+  // --- Tools --------------------------------------------------------------
+
+  "custom/terminal": {
+    "format": "term",
+    "tooltip": true,
+    "tooltip-format": "Terminal",
+    "on-click": "syos-summon foot foot"
+  },
+
+  "custom/browser": {
+    "format": "web",
+    "tooltip": true,
+    "tooltip-format": "Chrome",
+    "on-click": "syos-summon Google-chrome google-chrome"
+  },
+
+  "custom/calendar": {
+    "format": "cal",
+    "tooltip": true,
+    "tooltip-format": "Calendar",
+    "on-click": "syos-calendar"
+  },
+
+  // --- Status -------------------------------------------------------------
 
   "network": {
     "format-wifi": "wifi {essid} {signalStrength}%",
@@ -58,6 +145,9 @@
   "clock": {
     "interval": 30,
     "format": "{:%a %d %b  %H:%M}",
-    "tooltip-format": "<tt>{calendar}</tt>"
+    "tooltip-format": "<tt>{calendar}</tt>",
+    // The clock is where you look when you want to know about time, so it is
+    // also the largest target for opening the full calendar.
+    "on-click": "syos-calendar"
   }
 }

@@ -20,6 +20,14 @@ export XDG_CURRENT_DESKTOP=sway
 export XDG_SESSION_TYPE=wayland
 export XDG_SESSION_DESKTOP=sway
 
+# The cockpit's buttons invoke syos-* helpers by bare name, and greetd starts
+# this script from a non-login shell that has not read ~/.profile. Without
+# this, every button on the bar is a silent no-op.
+case ":$PATH:" in
+*":$HOME/.local/bin:"*) ;;
+*) export PATH="$HOME/.local/bin:$PATH" ;;
+esac
+
 export MOZ_ENABLE_WAYLAND=1
 export QT_QPA_PLATFORM="wayland;xcb"
 export QT_WAYLAND_DISABLE_WINDOWDECORATION=1

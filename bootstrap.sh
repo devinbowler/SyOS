@@ -30,8 +30,9 @@ BACKUP_DIR="$HOME/.syos-backup/$(date +%Y%m%d-%H%M%S)"
 # the two laptops byte-identical. See docs/decisions.md.
 IOSEVKA_VERSION="34.8.0"
 
-# Phase 0 ships four stow packages; later phases append to this list.
-STOW_PACKAGES=(sway foot waybar fuzzel)
+# Configuration and helper scripts, linked into $HOME by stow. The syos
+# package carries ~/.local/bin/syos-*, which the bar's buttons call.
+STOW_PACKAGES=(sway foot waybar fuzzel syos)
 
 NONINTERACTIVE=false
 RECONFIGURE=false
@@ -541,7 +542,13 @@ step_session() {
 # Managed by SyOS bootstrap.sh - edits are overwritten on the next run.
 
 [terminal]
-vt = 1
+# VT 7, not VT 1. Debian keeps agetty on tty1, and when greetd is pointed at
+# the same VT the two contend for it: greetd stays "active (running)" forever
+# without ever spawning the greeter, and you are left at a text login with
+# nothing in the journal to explain it. VT 7 is free on a Debian netinstall
+# and is where display managers have traditionally lived, so tty1 remains a
+# working escape hatch if the graphical session ever fails.
+vt = 7
 
 [default_session]
 command = "tuigreet --time --remember --asterisks --cmd /usr/local/bin/syos-session"

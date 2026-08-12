@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+# syos-menu - the application launcher behind the "+" button on the bar.
+#
+# fuzzel lists every installed .desktop file, ordered by how often you have
+# launched it, and its results are mouse-clickable. Clicking "+" a second time
+# while the menu is open closes it, which is what a button that looks like a
+# toggle is expected to do.
+
+set -euo pipefail
+
+if pkill -x fuzzel 2>/dev/null; then
+	exit 0
+fi
+
+exec fuzzel "$@"

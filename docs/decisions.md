@@ -138,3 +138,86 @@ These are Phase 1 work and are *not* done:
   entirely, which would leave no way to recover a session where the bar failed
   to start. They are undocumented in the UI and nothing depends on them, which
   is exactly the "dormant layer" of design doc 4.1.
+
+### Corrected after first VM boot: greetd must not share VT 1
+
+The first bootstrap put greetd on `vt = 1`, which is the greetd default and
+what most examples show. On Debian that VT already belongs to `getty@tty1`.
+The two contend for it and greetd loses quietly: `systemctl status greetd`
+reports `active (running)`, the cgroup contains only `greetd` with no greeter
+child, the journal says nothing beyond `Started greetd.service`, and the
+machine sits at a plain `debian login:` prompt looking like bootstrap failed.
+
+**Decision:** `vt = 7`. It is free on a netinstall, it is where display
+managers have historically lived, and leaving tty1 to agetty preserves a
+working text console to recover from when the graphical session breaks — which
+is worth more than matching the upstream default.
+
+---
+
+## Phase 1
+
+### The palette is neutral grey with a violet accent
+
+The Phase 0 palette was deliberately blue-tinted (`BG=0d0f12`) with a
+grey-green foreground. On a real panel it read as blue, which is not the
+intent of design doc 4.4 ("near-black, one accent").
+
+**Decision:** every surface value is now strictly neutral — R, G and B are
+equal in `BG`, `BG_ALT`, `BG_SEL`, `FG`, `FG_DIM` and `BORDER` — so nothing in
+the chrome carries a color cast. The single accent is violet (`a878f0`),
+replacing the desaturated green the design doc suggested. `BAR_HEIGHT` went
+from 24 to 28 to give the bar's buttons a real click target.
+
+Because the accent is now also the launcher's resting color, it is the one
+saturated thing on screen, which is the effect design doc 4.4 asked for.
+
+### The calendar is Google Calendar in a Chrome app window
+
+**Deviation from the design doc**, which specifies `calcurse` as the v1
+calendar and a custom scheduler later.
+
+`syos-calendar` runs `google-chrome --app=<url> --class=syos-calendar`. The
+`--app` flag drops the omnibox, tab strip and bookmarks bar, so the page fills
+a sway tab like a native window. `--class` sets `WM_CLASS`, which is what lets
+sway `assign` it to Board and lets `syos-summon` find it again.
+
+**Why:** the requirement is a full-page view you can actually schedule events
+in. calcurse is a TUI agenda — it lists and it edits, but it is keyboard-driven
+and does not give the month-grid, drag-to-create surface that "schedule
+events" implies. Rendering the real thing is the honest version of this
+feature until the custom scheduler exists.
+
+`SYOS_CALENDAR_URL` in `~/.config/syos/env.conf` overrides the URL, so a
+self-hosted or work calendar is a one-line change and nothing about the
+approach is Google-specific.
+
+### Bar buttons focus rather than launch duplicates
+
+Every tool button routes through `syos-summon <match> <command...>`, which
+searches the sway tree for a window whose `app_id` (Wayland) or
+`window_properties.class` (XWayland) matches, focuses it if found, and
+otherwise execs the command.
+
+Without this, a bar button is a trap: it looks like a tab switcher and behaves
+like a spawner, so five clicks give five terminals. Matching on app_id *or*
+class is what lets one helper cover native Wayland and XWayland clients alike.
+
+### Workspaces are named and persistent
+
+Named `0:Board`, `1:Work`, `2:Web`, `3:Comms`, `4:Ops` per design doc 3.2.
+Sway destroys a workspace as soon as it empties, so waybar's
+`persistent-workspaces` pins all five buttons to the bar permanently. The set
+of rooms has to be visible to be clickable; a mouse-first system cannot ask
+you to remember that workspace 3 exists.
+
+Chrome is assigned to Web and the calendar to Board, so opening something
+never requires deciding where to put it first.
+
+### An icon theme was added
+
+`papirus-icon-theme` from apt. fuzzel renders the icon from each `.desktop`
+file, and with no theme installed the launcher is a plain text list. This is
+the first half of the Phase 0 deferral on icons; the bar's own controls still
+use text and ASCII-safe glyphs (`+`, `×`, `|`, `—`) so nothing on the bar
+depends on Nerd Font coverage.
