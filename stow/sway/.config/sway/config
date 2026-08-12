@@ -110,7 +110,12 @@ exec lxpolkit
 
 # Land in Work with a terminal open, rather than on an empty screen with no
 # indication that anything is running.
-exec swaymsg workspace $ws_work
+#
+# This must be a plain command, not `exec swaymsg workspace ...`. Sway defers
+# exec until the config has finished loading, so an exec'd switch races the
+# terminal that was exec'd alongside it: sway's default workspace "1" wins,
+# foot opens there, and you get a stray "1" button on the bar next to Work.
+workspace $ws_work
 exec $term
 
 ### Keybindings ##########################################################

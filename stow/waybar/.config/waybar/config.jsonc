@@ -104,7 +104,7 @@
     "format": "web",
     "tooltip": true,
     "tooltip-format": "Chrome",
-    "on-click": "syos-summon Google-chrome google-chrome"
+    "on-click": "syos-summon -w 2:Web Google-chrome google-chrome"
   },
 
   "custom/calendar": {

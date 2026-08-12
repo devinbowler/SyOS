@@ -1,17 +1,32 @@
 #!/usr/bin/env bash
 # syos-summon - focus an application if it is already open, otherwise start it.
 #
-# Usage: syos-summon <match> <command> [args...]
+# Usage: syos-summon [-w <workspace>] <match> <command> [args...]
 #
 # <match> is compared case-insensitively against each window's Wayland app_id,
 # falling back to its XWayland class. This is what makes the bar's tool buttons
 # idempotent: clicking "cal" five times gives you one calendar, focused, rather
 # than five copies of it. Every button on the cockpit goes through here.
+#
+# -w switches to <workspace> before starting the application. Use it for
+# anything the sway config `assign`s elsewhere: without it you click a button,
+# the window opens on a workspace you are not looking at, and the button reads
+# as broken. Focusing an already-open window switches workspace on its own, so
+# -w only matters on the spawn path.
 
 set -euo pipefail
 
+workspace=""
+while getopts ":w:" opt; do
+	case "$opt" in
+	w) workspace=$OPTARG ;;
+	*) echo "syos-summon: unknown option -$OPTARG" >&2; exit 2 ;;
+	esac
+done
+shift $((OPTIND - 1))
+
 if [ $# -lt 2 ]; then
-	echo "usage: syos-summon <app_id|class> <command> [args...]" >&2
+	echo "usage: syos-summon [-w <workspace>] <app_id|class> <command> [args...]" >&2
 	exit 2
 fi
 
@@ -29,6 +44,10 @@ if swaymsg -t get_tree 2>/dev/null | jq -e --arg m "$match" '
 	swaymsg "[app_id=\"(?i)^${match}\$\"] focus" >/dev/null 2>&1 || true
 	swaymsg "[class=\"(?i)^${match}\$\"] focus" >/dev/null 2>&1 || true
 	exit 0
+fi
+
+if [ -n "$workspace" ]; then
+	swaymsg workspace "$workspace" >/dev/null 2>&1 || true
 fi
 
 exec "$@"

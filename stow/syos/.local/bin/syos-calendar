@@ -20,5 +20,5 @@ if ! command -v google-chrome >/dev/null 2>&1; then
 	exit 1
 fi
 
-exec syos-summon "$class" \
+exec syos-summon -w "0:Board" "$class" \
 	google-chrome --app="$url" --class="$class" --name="$class"
