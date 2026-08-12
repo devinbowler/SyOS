@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=files
+GenericName=File Manager
+Comment=Browse the filesystem
+Exec=foot -a syos-files yazi
+Icon=system-file-manager
+Terminal=false
+Categories=Utility;FileManager;
+StartupNotify=true
+StartupWMClass=syos-files

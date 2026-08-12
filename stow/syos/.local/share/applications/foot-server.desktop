@@ -1,0 +1,8 @@
+# Shadows /usr/share/applications/foot-server.desktop. See footclient.desktop
+# in this directory for why.
+[Desktop Entry]
+Type=Application
+Name=foot-server
+Exec=foot --server
+Terminal=false
+NoDisplay=true

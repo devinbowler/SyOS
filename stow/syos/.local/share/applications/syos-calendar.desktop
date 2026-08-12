@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=calendar
+GenericName=Calendar
+Comment=Full-page calendar
+Exec=syos-calendar
+Icon=office-calendar
+Terminal=false
+Categories=Office;Calendar;
+StartupNotify=true

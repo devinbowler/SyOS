@@ -1,0 +1,10 @@
+# Shadows /usr/share/applications/vim.desktop (from vim-common).
+#
+# Two entries for the same editor, one of which is the older one, is noise.
+# Neovim stays; vim is still on PATH for anything that expects it.
+[Desktop Entry]
+Type=Application
+Name=vim
+Exec=vim %F
+Terminal=true
+NoDisplay=true

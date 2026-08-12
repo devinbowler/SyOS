@@ -47,23 +47,6 @@ mapfile -d '' scripts < <(
 		done
 )
 
-# Override when shellcheck is not on PATH, e.g. a downloaded static binary:
-#   SHELLCHECK=~/.local/bin/shellcheck tools/lint.sh
-SHELLCHECK="${SHELLCHECK:-shellcheck}"
-
-if ! command -v "$SHELLCHECK" >/dev/null 2>&1; then
-	printf 'shellcheck not found (set SHELLCHECK=/path/to/shellcheck); skipping lint\n' >&2
-	exit 0
-fi
-
-printf 'shellcheck: %s\n' "${scripts[*]}"
-"$SHELLCHECK" --shell=bash --external-sources "${scripts[@]}"
-printf 'shellcheck: clean\n'
-
-# A syntax error in the bar's config costs you the entire bar, and waybar
-# reports it only to its own stderr inside the session - by which point the
-# machine has no visible controls left to debug it with. jq cannot read the
-# comments waybar allows, so strip whole-line comments first.
 # Python, discovered by shebang for the same reason as the shell scripts.
 mapfile -d '' pyfiles < <(
 	find . -type f -not -path './.git/*' -print0 |
@@ -74,6 +57,38 @@ mapfile -d '' pyfiles < <(
 			esac
 		done
 )
+
+# Every file with a shebang must be executable in git's index.
+#
+# Windows has no executable bit, so a script authored here is committed 100644
+# and arrives on Debian unrunnable. The failure is silent in the worst way: the
+# bar button that calls it does nothing at all, with no error anywhere, because
+# nothing is watching the exit status of a click. This has cost real debugging
+# time once already, so it is fixed here rather than remembered.
+if command -v git >/dev/null 2>&1 && [[ -d .git ]]; then
+	fixed=0
+	for file in "${scripts[@]}" "${pyfiles[@]}"; do
+		mode="$(git ls-files -s -- "$file" | awk '{print $1}')"
+		# Untracked, or already executable.
+		[[ -z "$mode" || "$mode" == "100755" ]] && continue
+		git update-index --chmod=+x -- "$file"
+		printf '  chmod +x    %s\n' "$file"
+		fixed=$((fixed + 1))
+	done
+	printf 'exec bits: %d file(s) corrected\n' "$fixed"
+fi
+
+# Override when shellcheck is not on PATH, e.g. a downloaded static binary:
+#   SHELLCHECK=~/.local/bin/shellcheck tools/lint.sh
+SHELLCHECK="${SHELLCHECK:-shellcheck}"
+
+if command -v "$SHELLCHECK" >/dev/null 2>&1; then
+	printf 'shellcheck: %s\n' "${scripts[*]}"
+	"$SHELLCHECK" --shell=bash --external-sources "${scripts[@]}"
+	printf 'shellcheck: clean\n'
+else
+	printf 'shellcheck not found (set SHELLCHECK=/path/to/shellcheck); skipping\n' >&2
+fi
 
 if [[ ${#pyfiles[@]} -gt 0 ]]; then
 	# Override when ruff is not on PATH, e.g. a pip --user install:
@@ -89,6 +104,10 @@ if [[ ${#pyfiles[@]} -gt 0 ]]; then
 	fi
 fi
 
+# A syntax error in the bar's config costs you the entire bar, and waybar
+# reports it only to its own stderr inside the session - by which point the
+# machine has no visible controls left to debug it with. jq cannot read the
+# comments waybar allows, so strip whole-line comments first.
 if command -v jq >/dev/null 2>&1; then
 	for jsonc in stow/waybar/.config/waybar/*.jsonc; do
 		[ -e "$jsonc" ] || continue

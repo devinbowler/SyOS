@@ -1,0 +1,16 @@
+# Shadows /usr/share/applications/footclient.desktop.
+#
+# foot ships three launcher entries - the terminal, the client and the server -
+# and only the first is a thing anyone means when they think "terminal". The
+# other two are the halves of foot's server mode, which is an implementation
+# detail of how the terminal starts quickly, not an application. A launcher
+# offering three terminals is a launcher that makes you think.
+#
+# A same-named file in ~/.local/share/applications wins over /usr/share, so
+# this hides it without touching anything the package manager owns.
+[Desktop Entry]
+Type=Application
+Name=footclient
+Exec=footclient
+Terminal=false
+NoDisplay=true

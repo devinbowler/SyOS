@@ -353,6 +353,34 @@ it. But `flatpak` moved out of `packages.list`: bootstrap now installs it on
 demand, only when `packages-flatpak.list` has an entry, so an empty manifest
 costs no disk.
 
+### The executable bit is now checked by the linter
+
+`syos-notes` shipped as mode 644 because Windows has no executable bit and
+`core.filemode` is false here, so git recorded what the filesystem claimed.
+On Debian the file was simply not runnable, and the failure was silent in the
+worst possible way: the bar button did nothing, printed nothing, and nothing
+was watching the exit status of a click.
+
+`tools/lint.sh` now checks every file with a shebang against git's index and
+runs `git update-index --chmod=+x` on any that are not 755. Fixed rather than
+remembered, because this will happen again to the next script.
+
+### The launcher shows applications, not implementation details
+
+foot ships three desktop entries — the terminal, the client and the server —
+and vim-common ships one that duplicates neovim. A launcher offering three
+terminals is a launcher that makes you stop and think about which one you
+meant, which is the opposite of what it is for.
+
+Same-named files in `~/.local/share/applications` shadow `/usr/share`, so
+`stow/syos/.local/share/applications/` carries `NoDisplay=true` stubs for
+`footclient`, `foot-server` and `vim`. Nothing the package manager owns is
+touched, and the programs stay on PATH.
+
+The same directory is where SyOS's own applications get their entries. Without
+one, `syos-notes` existed and ran but could not be found by searching for it,
+which is not what "installed" should mean.
+
 ### Notes are a SyOS application, not an installed one
 
 The requirement was: select text and a formatting bar appears over it, small
