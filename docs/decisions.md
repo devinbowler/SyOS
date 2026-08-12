@@ -241,6 +241,23 @@ comment. swaybg ran with a bare `--color`, printed its usage into
 Worth remembering generally: any palette value interpolated into an `exec`
 line has to be quoted, because every color in this system starts with `#`.
 
+### VMs also get `WLR_RENDERER=pixman`
+
+`WLR_NO_HARDWARE_CURSORS=1` alone was not enough on VirtualBox. Dragging the
+pointer smeared pixels across the screen and newly-mapped surfaces did not
+appear at all: the GL path only repaints the damaged region, and the virtual
+GPU never refreshes the rest of the frame. The failure is worse than ugly,
+because a launcher that opens but is never drawn is indistinguishable from a
+button that does nothing.
+
+Rendering on the CPU with pixman sidesteps the whole damage-tracking path. For
+a UI with no animation, no compositing effects and no transparency, at VM
+resolutions, it is fast enough that the difference is not visible.
+
+Written to `~/.config/syos/env.conf` only when `systemd-detect-virt` reports
+virtualisation, alongside the cursor workaround. Real hardware keeps the GL
+renderer.
+
 ### An icon theme was added
 
 `papirus-icon-theme` from apt. fuzzel renders the icon from each `.desktop`

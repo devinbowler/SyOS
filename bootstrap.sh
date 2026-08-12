@@ -458,6 +458,14 @@ render_machine_fragments() {
 			echo "# invisible or lands at the wrong position. Software cursors cost a"
 			echo "# little latency and are correct everywhere."
 			echo "export WLR_NO_HARDWARE_CURSORS=1"
+			echo
+			echo "# Draw with pixman (CPU) instead of OpenGL. VirtualBox's virtual GPU"
+			echo "# mishandles damage tracking: only the changed region is repainted,"
+			echo "# the rest of the frame is never refreshed, and dragging the pointer"
+			echo "# smears pixels across the screen. The CPU renderer is correct, and"
+			echo "# for a static, unanimated UI at this resolution it is fast enough."
+			echo "# Unset it on a VM with working 3D acceleration for a real GPU path."
+			echo "export WLR_RENDERER=pixman"
 		else
 			echo "# Physical hardware: no workarounds needed."
 		fi
