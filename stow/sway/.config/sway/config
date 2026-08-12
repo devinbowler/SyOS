@@ -15,25 +15,18 @@ set $term foot
 set $menu syos-menu
 
 ### Workspaces ###########################################################
-# Five fixed rooms rather than an arbitrary number (design doc 3.2). They
-# are named, not numbered, because the bar shows the name and a name is
-# something you can aim at. Board leads because it is the "where am I"
-# workspace: calendar and dashboards, the thing you return to.
-
-set $ws_board "0:Board"
-set $ws_work "1:Work"
-set $ws_web "2:Web"
-set $ws_comms "3:Comms"
-set $ws_ops "4:Ops"
-
-# Deliberately no `assign` rules. Everything opens as a tab in the workspace
-# you are looking at, which is the one-frame promise; being teleported
-# elsewhere by an invisible rule is the opposite of it. The rooms are places
-# you choose to go, not places applications are filed for you.
+# One workspace. Deliberately.
 #
-# `assign` was also unworkable for the calendar: it matches at window creation
-# on class, and the calendar's class depends on whether Chrome was already
-# running (see syos-calendar).
+# The five named rooms of design doc 3.2 were built and removed: with labels
+# like "Web" sitting on the bar next to the real tab strip, they read as tabs
+# that already had something open in them, and clicking one showed an empty
+# screen. Two rows of things-you-can-click that mean different kinds of thing
+# is one row too many.
+#
+# One frame, one strip of tabs, and everything you open joins it. That is the
+# whole model, and it is now the only model on screen.
+
+set $ws_main "main"
 
 ### Layout ###############################################################
 # Everything is a tab. Splits are created deliberately (Phase 1 puts them
@@ -87,6 +80,21 @@ for_window [app_id="google-chrome"] floating disable
 # The calendar needs no rule of its own: it is a Chrome --app window and so
 # already carries the Google-chrome class matched above.
 
+### Mouse on the tab strip ###############################################
+# Sway draws tab titles itself and offers no way to put a widget - a close
+# "x" - inside one. See docs/decisions.md. Middle-click is the closest
+# equivalent that needs no focus first, and it is the same gesture that
+# closes a tab in Chrome, Firefox and VS Code.
+#
+# Without --whole-window these only fire on the tab strip and window border,
+# so middle-click paste inside a terminal is untouched.
+
+bindsym button2 kill
+
+# Right-click a tab to cycle the frame's layout, for the same reason: it is
+# the gesture people already try on a tab strip.
+bindsym button3 exec syos-layout cycle
+
 ### Bar ##################################################################
 # Sway supervises waybar, so the bar restarts with the session and there is
 # no separate user unit to keep in sync.
@@ -119,8 +127,8 @@ exec lxpolkit
 # This must be a plain command, not `exec swaymsg workspace ...`. Sway defers
 # exec until the config has finished loading, so an exec'd switch races the
 # terminal that was exec'd alongside it: sway's default workspace "1" wins,
-# foot opens there, and you get a stray "1" button on the bar next to Work.
-workspace $ws_work
+# foot opens there, and you get a stray second workspace.
+workspace $ws_main
 exec $term
 
 ### Keybindings ##########################################################

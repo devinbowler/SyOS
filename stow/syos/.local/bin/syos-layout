@@ -1,0 +1,47 @@
+#!/usr/bin/env bash
+# syos-layout - change how the current frame arranges its windows.
+#
+# Usage: syos-layout <tabs|cols|rows|cycle>
+#
+#   tabs   one window visible, the rest as a tab strip (the SyOS default)
+#   cols   every window side by side, left to right
+#   rows   every window stacked, top to bottom
+#   cycle  tabs -> cols -> rows -> tabs
+#
+# `swaymsg layout` acts on the focused window's parent container, which for a
+# workspace holding a tab strip is that strip. So these switch the whole frame
+# rather than some nested part of it, which is the only behaviour that makes
+# sense from a button on the bar.
+
+set -euo pipefail
+
+usage() {
+	echo "usage: syos-layout <tabs|cols|rows|cycle>" >&2
+	exit 2
+}
+
+# The layout of the container holding the focused window, i.e. the one that
+# `swaymsg layout` is about to act on.
+current() {
+	swaymsg -t get_tree 2>/dev/null | jq -r '
+		[ recurse(.nodes[]?, .floating_nodes[]?)
+		  | select([.nodes[]?, .floating_nodes[]?] | any(.focused == true)) ]
+		| .[0].layout // "none"
+	' 2>/dev/null || echo none
+}
+
+case "${1:-}" in
+tabs) target=tabbed ;;
+cols) target=splith ;;
+rows) target=splitv ;;
+cycle)
+	case "$(current)" in
+	tabbed) target=splith ;;
+	splith) target=splitv ;;
+	*) target=tabbed ;;
+	esac
+	;;
+*) usage ;;
+esac
+
+swaymsg layout "$target" >/dev/null

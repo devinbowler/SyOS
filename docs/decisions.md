@@ -215,6 +215,54 @@ keeps one regex dialect in play. sway's criteria and jq's `test()` are
 different engines, and a match decided in one but executed in the other is a
 bug waiting for an unusual window title.
 
+### Reverted: there is one workspace, not five
+
+The five named rooms below were built, used, and removed after the first
+session with them.
+
+They failed for a reason worth recording: the bar ended up with two rows of
+clickable labels that meant different kinds of thing. `Board Work Web Comms
+Ops` sat immediately above sway's real tab strip, so `Web` read as a tab that
+already had a browser in it. Clicking it showed an empty screen, which looks
+like a bug rather than an empty room.
+
+**Deviation from design doc 3.2.** One frame, one strip of tabs, everything
+you open joins it. The workspace concept is not exposed in the interface at
+all; sway still has workspaces, SyOS just never shows or uses more than one.
+
+### Sway cannot put a close button on a tab
+
+Requested: an `x` on each tab, as in Chrome or VS Code, so closing something
+does not require focusing it first.
+
+Sway draws tab titles internally and exposes no mechanism for placing a
+widget inside one. `title_format` accepts text and Pango markup, not buttons,
+and there is no click region within a title beyond the title itself. This is
+not a configuration gap; it is absent from the compositor.
+
+**Decision:** `bindsym button2 kill` — middle-click any tab to close it.
+Without `--whole-window` the binding is confined to the tab strip and window
+border, so middle-click paste inside a terminal still works. It needs no
+prior focus, which was the actual requirement, and it is the same gesture
+that closes a tab in Chrome, Firefox and VS Code. The bar keeps an `x` for
+the focused window, since a gesture with no visible affordance cannot be the
+only path in a mouse-first system.
+
+The alternative, replacing sway's tab strip with a waybar `wlr/taskbar`, was
+rejected for now: it renders icons rather than titles and would mean the
+frame's own titlebars say one thing while the bar above says another.
+
+### Everything SyOS renders is lower case
+
+Small, quiet, terminal-like. Capitals are reserved for content - the window
+titles in the tab strip, which come from the applications themselves.
+
+Two places resisted. Waybar's format strings cannot change case, so the clock
+is a `custom` module piping `date` through `tr` rather than the built-in
+`clock` module; the built-in's calendar tooltip is lost, which is acceptable
+now that a calendar button exists. Application names in the launcher come
+from their `.desktop` files and stay as their authors wrote them.
+
 ### Workspaces are named and persistent, but nothing is assigned to them
 
 Named `0:Board`, `1:Work`, `2:Web`, `3:Comms`, `4:Ops` per design doc 3.2.

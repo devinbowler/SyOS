@@ -2,8 +2,14 @@
 //
 // Every control here is reachable with the mouse alone; nothing on this bar
 // requires or hints at a keyboard shortcut. Reading left to right: open
-// something, move between workspaces, shape and close the current window,
-// jump to a tool, check the machine.
+// something, arrange the frame, close what is in front, then the tools and
+// the state of the machine.
+//
+// All text is lower case. Capitals are for the things you opened, which show
+// up in sway's tab strip; the chrome around them stays quiet.
+//
+// There is no workspace module. SyOS has one workspace - see the sway config
+// for why - and the tab strip is the only list of "things you can switch to".
 //
 // Custom modules shell out to the scripts in stow/syos/.local/bin. They all
 // route through syos-summon, so a button focuses what is already open instead
@@ -17,12 +23,12 @@
 
   "modules-left": [
     "custom/launcher",
-    "sway/workspaces",
-    "custom/splith",
-    "custom/splitv",
+    "custom/tabs",
+    "custom/cols",
+    "custom/rows",
     "custom/close"
   ],
-  "modules-center": ["sway/window"],
+  "modules-center": [],
   "modules-right": [
     "custom/terminal",
     "custom/browser",
@@ -30,7 +36,7 @@
     "network",
     "pulseaudio",
     "battery",
-    "clock"
+    "custom/clock"
   ],
 
   // --- Open ---------------------------------------------------------------
@@ -38,57 +44,39 @@
   "custom/launcher": {
     "format": "+",
     "tooltip": true,
-    "tooltip-format": "Open an application",
+    "tooltip-format": "open an application",
     "on-click": "syos-menu"
   },
 
-  "sway/workspaces": {
-    // Mouse-first: click a workspace to switch, scroll over the module to
-    // cycle. Neither may depend on a keybind.
-    "disable-scroll": false,
-    "disable-click": false,
-    "all-outputs": true,
-    "format": "{name}",
-    // Sway destroys a workspace the moment it empties. Listing them here
-    // keeps all five buttons on the bar at all times, so the set of rooms is
-    // something you can see and click rather than something you memorise.
-    "persistent-workspaces": {
-      "0:Board": [],
-      "1:Work": [],
-      "2:Web": [],
-      "3:Comms": [],
-      "4:Ops": []
-    }
+  // --- Arrange the frame --------------------------------------------------
+  // Tabs are the default. These are the deliberate way out of it, and back.
+
+  "custom/tabs": {
+    "format": "tabs",
+    "tooltip": true,
+    "tooltip-format": "one window at a time, the rest as tabs",
+    "on-click": "syos-layout tabs"
   },
 
-  // --- Shape the current window -------------------------------------------
-  // Tabs are the default, so these two are the deliberate escape into a
-  // split: press one, then open the next thing from "+".
-
-  "custom/splith": {
-    "format": "|",
+  "custom/cols": {
+    "format": "cols",
     "tooltip": true,
-    "tooltip-format": "Next window opens beside this one",
-    "on-click": "swaymsg splith"
+    "tooltip-format": "all windows side by side",
+    "on-click": "syos-layout cols"
   },
 
-  "custom/splitv": {
-    "format": "\u2014",
+  "custom/rows": {
+    "format": "rows",
     "tooltip": true,
-    "tooltip-format": "Next window opens below this one",
-    "on-click": "swaymsg splitv"
+    "tooltip-format": "all windows stacked top to bottom",
+    "on-click": "syos-layout rows"
   },
 
   "custom/close": {
     "format": "\u00d7",
     "tooltip": true,
-    "tooltip-format": "Close the focused window",
+    "tooltip-format": "close the window in front (or middle-click any tab)",
     "on-click": "swaymsg kill"
-  },
-
-  "sway/window": {
-    "max-length": 80,
-    "tooltip": false
   },
 
   // --- Tools --------------------------------------------------------------
@@ -96,14 +84,14 @@
   "custom/terminal": {
     "format": "term",
     "tooltip": true,
-    "tooltip-format": "Terminal",
+    "tooltip-format": "terminal",
     "on-click": "syos-summon -a foot -- foot"
   },
 
   "custom/browser": {
     "format": "web",
     "tooltip": true,
-    "tooltip-format": "Chrome",
+    "tooltip-format": "chrome",
     // -x keeps this button off the calendar, which is also a Chrome window.
     "on-click": "syos-summon -a Google-chrome -x '^Google Calendar' -- google-chrome"
   },
@@ -111,7 +99,7 @@
   "custom/calendar": {
     "format": "cal",
     "tooltip": true,
-    "tooltip-format": "Calendar",
+    "tooltip-format": "calendar",
     "on-click": "syos-calendar"
   },
 
@@ -143,12 +131,13 @@
     "tooltip-format": "{timeTo}"
   },
 
-  "clock": {
+  // A custom module rather than waybar's clock purely to get lower case:
+  // strftime yields "Tue", and waybar's format strings cannot change case.
+  "custom/clock": {
+    "exec": "date '+%a %d %b  %H:%M' | tr '[:upper:]' '[:lower:]'",
     "interval": 30,
-    "format": "{:%a %d %b  %H:%M}",
-    "tooltip-format": "<tt>{calendar}</tt>",
-    // The clock is where you look when you want to know about time, so it is
-    // also the largest target for opening the full calendar.
+    "tooltip": true,
+    "tooltip-format": "open the calendar",
     "on-click": "syos-calendar"
   }
 }

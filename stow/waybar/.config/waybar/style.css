@@ -24,15 +24,14 @@ window#waybar {
 
 /* Every module gets the same rhythm so the bar reads as one strip rather
  * than a row of unrelated widgets. */
-#workspaces,
-#window,
 #network,
 #pulseaudio,
 #battery,
-#clock,
+#custom-clock,
 #custom-launcher,
-#custom-splith,
-#custom-splitv,
+#custom-tabs,
+#custom-cols,
+#custom-rows,
 #custom-close,
 #custom-terminal,
 #custom-browser,
@@ -47,26 +46,28 @@ window#waybar {
  * mouse-first system the hover state is the entire discoverability story:
  * it is how you learn the bar is a control surface and not a readout. */
 #custom-launcher,
-#custom-splith,
-#custom-splitv,
+#custom-tabs,
+#custom-cols,
+#custom-rows,
 #custom-close,
 #custom-terminal,
 #custom-browser,
 #custom-calendar,
-#clock,
+#custom-clock,
 #network,
 #pulseaudio {
 	transition: background 80ms linear, color 80ms linear;
 }
 
 #custom-launcher:hover,
-#custom-splith:hover,
-#custom-splitv:hover,
+#custom-tabs:hover,
+#custom-cols:hover,
+#custom-rows:hover,
 #custom-close:hover,
 #custom-terminal:hover,
 #custom-browser:hover,
 #custom-calendar:hover,
-#clock:hover,
+#custom-clock:hover,
 #network:hover,
 #pulseaudio:hover {
 	color: @fg;
@@ -91,16 +92,16 @@ window#waybar {
 	background: @urgent;
 }
 
-/* Window controls sit in their own visual group, fenced off from the
- * workspace list on one side and the title on the other. */
-#custom-splith {
+/* The layout controls read as one group, fenced off from the launcher on the
+ * left and the close button on the right. */
+#custom-tabs {
 	border-left: 1px solid @border;
 	padding-left: 12px;
 }
 
 #custom-close {
-	border-right: 1px solid @border;
-	padding-right: 12px;
+	border-left: 1px solid @border;
+	padding-left: 12px;
 }
 
 /* Tool buttons read as a set. */
@@ -115,45 +116,7 @@ window#waybar {
 	padding-right: 12px;
 }
 
-#workspaces {
-	padding: 0;
-}
-
-#workspaces button {
-	padding: 0 10px;
-	color: @fg_dim;
-	background: transparent;
-	border-bottom: 1px solid transparent;
-}
-
-#workspaces button:hover {
-	color: @fg;
-	background: @bg_alt;
-}
-
-#workspaces button.focused,
-#workspaces button.visible {
-	color: @accent;
-	background: @bg_sel;
-	border-bottom: 1px solid @accent;
-}
-
-#workspaces button.urgent {
-	color: @bg;
-	background: @urgent;
-}
-
-#window {
-	color: @fg;
-}
-
-/* Dim the title when the focused window is on another output, so the bar
- * never claims you are somewhere you are not. */
-window#waybar.empty #window {
-	color: @fg_dim;
-}
-
-#clock {
+#custom-clock {
 	color: @fg;
 	padding-right: 12px;
 }

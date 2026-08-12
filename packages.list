@@ -60,6 +60,12 @@ ca-certificates
 gnupg
 unzip
 
+# --- Built-in tools -----------------------------------------------------
+# These are what the launcher is expected to find. An application that is
+# listed on the bar or reachable from "+" but not installed is worse than one
+# that is missing entirely: it looks broken rather than absent.
+neovim
+
 # --- Session utilities --------------------------------------------------
 wl-clipboard
 grim
