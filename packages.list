@@ -66,6 +66,13 @@ unzip
 # that is missing entirely: it looks broken rather than absent.
 neovim
 
+# yazi, the file manager, is NOT here: it is not packaged in trixie and is
+# vendored from its upstream release by bootstrap.sh.
+
+# --- Flatpak ------------------------------------------------------------
+# For applications Debian does not ship at all; see packages-flatpak.list.
+flatpak
+
 # --- Session utilities --------------------------------------------------
 wl-clipboard
 grim

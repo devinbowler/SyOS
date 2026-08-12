@@ -306,6 +306,47 @@ Written to `~/.config/syos/env.conf` only when `systemd-detect-virt` reports
 virtualisation, alongside the cursor workaround. Real hardware keeps the GL
 renderer.
 
+### yazi is vendored from upstream, not from the community apt repo
+
+yazi is not in trixie. There is one apt source for it, `deb.griffo.io`, an
+unofficial repository maintained by a single person.
+
+**Decision:** vendor the upstream release binary, pinned to v26.5.6, the same
+pattern already used for Iosevka. Installed to `/usr/local/bin`, with the
+version stamped at `/usr/local/share/syos/yazi-version` so re-runs are
+no-ops. This keeps the trust boundary at the upstream project and keeps the
+two laptops on an identical build.
+
+Verified before shipping: the release URL resolves, the archive lays out as
+`yazi-<target>/yazi` and `.../ya` so `unzip -j '*/yazi' '*/ya'` extracts both,
+and the extracted binary reports 26.5.6.
+
+The file button opens it as `foot -a syos-files yazi`. `foot -a` sets the
+Wayland app_id, which gives the file browser a tab identity distinct from a
+plain terminal — otherwise the summon matcher cannot tell the two apart.
+
+### Notes are Obsidian, over flatpak
+
+**First use of flatpak**, and the first entry in `packages-flatpak.list`.
+Debian ships no comparable markdown editor and Obsidian has no `.deb` at all.
+
+The requirement was real formatting power — bold, colour, highlight, nested
+bullets — over files that stay plain markdown and remain readable in nvim.
+Native GTK options in Debian (Apostrophe) do the minimal-editor half well but
+have no highlight or colour. The cost is honest: Electron, several hundred
+megabytes, and a runtime download on first bootstrap.
+
+Installed `--user` rather than system-wide, along with the flathub remote:
+these are the person's applications, not the machine's, and after the first
+run nothing about them needs root.
+
+The bar button matches on the window title ending in `Obsidian` rather than on
+a class, because a flatpak's window class is not reliably its application id.
+
+Deliberately **not** done yet: theming Obsidian to match the palette. It takes
+a CSS snippet plus an `appearance.json` inside the vault, and the vault does
+not exist until the user creates one on first run.
+
 ### An icon theme was added
 
 `papirus-icon-theme` from apt. fuzzel renders the icon from each `.desktop`

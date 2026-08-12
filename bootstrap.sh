@@ -20,6 +20,7 @@ set -euo pipefail
 REPO_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 STOW_SRC="$REPO_DIR/stow"
 PKG_LIST="$REPO_DIR/packages.list"
+FLATPAK_LIST="$REPO_DIR/packages-flatpak.list"
 PALETTE="$REPO_DIR/theme/palette.conf"
 
 SYOS_CONF_DIR="$HOME/.config/syos"
@@ -29,6 +30,11 @@ BACKUP_DIR="$HOME/.syos-backup/$(date +%Y%m%d-%H%M%S)"
 # Iosevka is not in trixie, so it is vendored at a pinned version to keep
 # the two laptops byte-identical. See docs/decisions.md.
 IOSEVKA_VERSION="34.8.0"
+
+# yazi is not in trixie either. The only apt source is a one-person community
+# repo; vendoring the upstream release instead keeps the trust boundary at
+# GitHub and the version pinned. Same reasoning as Iosevka.
+YAZI_VERSION="26.5.6"
 
 # Configuration and helper scripts, linked into $HOME by stow. The syos
 # package carries ~/.local/bin/syos-*, which the bar's buttons call.
@@ -327,6 +333,105 @@ step_fonts() {
 	rm -rf "$tmp"
 	fc-cache -f "$dir" >/dev/null 2>&1 || warn "fc-cache failed; fonts may need a re-login"
 	changed "installed Iosevka Term $IOSEVKA_VERSION"
+}
+
+step_yazi() {
+	log "File manager (yazi)"
+
+	local stamp="/usr/local/share/syos/yazi-version"
+
+	if command -v yazi >/dev/null 2>&1 && sudo test -f "$stamp" &&
+		[[ "$(sudo cat "$stamp" 2>/dev/null)" == "$YAZI_VERSION" ]]; then
+		info "yazi $YAZI_VERSION present"
+		return 0
+	fi
+
+	local target
+	case "$(dpkg --print-architecture)" in
+	amd64) target="x86_64-unknown-linux-gnu" ;;
+	arm64) target="aarch64-unknown-linux-gnu" ;;
+	*)
+		warn "no yazi build for $(dpkg --print-architecture); skipping"
+		return 0
+		;;
+	esac
+
+	local url tmp zip
+	url="https://github.com/sxyazi/yazi/releases/download/v${YAZI_VERSION}/yazi-${target}.zip"
+	tmp="$(mktemp -d)" || die "mktemp failed"
+	zip="$tmp/yazi.zip"
+
+	info "downloading yazi $YAZI_VERSION"
+	if ! curl -fsSL --retry 3 --connect-timeout 20 -o "$zip" "$url"; then
+		rm -rf "$tmp"
+		warn "could not download yazi; the files button will not work"
+		warn "re-run ./bootstrap.sh when online"
+		return 0
+	fi
+
+	# -j flattens the archive's yazi-<target>/ prefix.
+	unzip -j -o -q "$zip" '*/yazi' '*/ya' -d "$tmp" 2>/dev/null || true
+
+	if [[ ! -f "$tmp/yazi" ]]; then
+		rm -rf "$tmp"
+		warn "the yazi archive held no binary; skipping"
+		return 0
+	fi
+
+	sudo install -D -m 0755 "$tmp/yazi" /usr/local/bin/yazi ||
+		die "could not install yazi"
+	# `ya` is the plugin manager; useful, but not worth failing the run over.
+	if [[ -f "$tmp/ya" ]]; then
+		sudo install -D -m 0755 "$tmp/ya" /usr/local/bin/ya || true
+	fi
+
+	sudo install -d -m 0755 /usr/local/share/syos
+	printf '%s\n' "$YAZI_VERSION" | sudo tee "$stamp" >/dev/null
+	rm -rf "$tmp"
+	changed "installed yazi $YAZI_VERSION"
+}
+
+step_flatpak() {
+	log "Flatpak applications"
+
+	local apps=()
+	if [[ -f "$FLATPAK_LIST" ]]; then
+		mapfile -t apps < <(sed -e 's/#.*//' -e 's/[[:space:]]//g' \
+			"$FLATPAK_LIST" | grep -v '^$' || true)
+	fi
+
+	if [[ ${#apps[@]} -eq 0 ]]; then
+		info "none requested"
+		return 0
+	fi
+
+	command -v flatpak >/dev/null 2>&1 ||
+		die "packages-flatpak.list is not empty but flatpak is not installed"
+
+	# A --user remote and --user installs: these are the person's
+	# applications, not the machine's, and after the first run nothing here
+	# needs root. It also keeps flatpak's state inside $HOME where the rest
+	# of SyOS's per-user state already lives.
+	if ! flatpak remotes --user --columns=name 2>/dev/null | grep -qx flathub; then
+		flatpak remote-add --user --if-not-exists flathub \
+			https://dl.flathub.org/repo/flathub.flatpakrepo ||
+			die "could not add the flathub remote"
+		changed "added the flathub remote"
+	fi
+
+	local app
+	for app in "${apps[@]}"; do
+		if flatpak info --user "$app" >/dev/null 2>&1; then
+			info "$app present"
+			continue
+		fi
+		info "installing $app (large download, several minutes)"
+		if flatpak install --user --assumeyes --noninteractive flathub "$app"; then
+			changed "installed $app"
+		else
+			warn "could not install $app; re-run ./bootstrap.sh when online"
+		fi
+	done
 }
 
 step_theme() {
@@ -628,6 +733,8 @@ main() {
 	step_packages
 	step_chrome
 	step_fonts
+	step_yazi
+	step_flatpak
 	# Order matters: the theme reads SYOS_FONT_SIZE out of local.conf, so the
 	# machine questions have to be answered before fragments are rendered,
 	# and the fragments have to exist before stow links them.
